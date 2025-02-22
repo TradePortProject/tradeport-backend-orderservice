@@ -1,0 +1,81 @@
+using Microsoft.EntityFrameworkCore;
+using OrderManagement.Data;
+using OrderManagement.Mappings;
+using OrderManagement.Repositories;
+using AutoMapper;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Data.SqlClient;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Services.AddAutoMapper(typeof(OrderAutoMapperProfiles));
+
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+//builder.Services.AddDbContext<AppDbContext>(options =>
+    //options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+//var connectionString = Environment.GetEnvironmentVariable("DEFAULT_CONNECTION") ??
+                       //builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Add DbContext service
+//builder.Services.AddDbContext<AppDbContext>(options =>
+    //options.UseSqlServer(connectionString));
+
+// Configure SqlClient to ignore certificate validation errors (for testing purposes)
+SqlConnectionStringBuilder sqlBuilder = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+sqlBuilder.Encrypt = true;
+sqlBuilder.TrustServerCertificate = true;
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(sqlBuilder.ConnectionString));
+
+// Register repository
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
+
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins",
+    builder =>
+    {
+        builder.WithOrigins("http://localhost:3001") // Add the ReactJS app origin
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(3015); // HTTP port
+    options.ListenAnyIP(3016);
+    //options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps()); // HTTPS port
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+// Enable CORS with the specified policy
+app.UseCors("AllowSpecificOrigins");
+
+app.Run();
