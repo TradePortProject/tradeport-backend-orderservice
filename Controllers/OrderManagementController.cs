@@ -163,8 +163,8 @@ namespace OrderManagement.Controllers
                 var response = new
                 {
                     Message = "Order creation failed.",
-                    ProductCode = string.Empty,
-                    ErrorMessage = ex.Message
+                    OrderId = string.Empty,
+                    ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
                 };
 
                 return StatusCode(500, response);
@@ -187,6 +187,56 @@ namespace OrderManagement.Controllers
                 totalPrice += item.ProductPrice * item.Quantity;
             }
             return totalPrice;
+        }
+
+        [HttpPut("UpdateOrder")]
+        public async Task<IActionResult> UpdateOrder([FromBody] UpdateOrderDTO updateOrderDto)
+        {
+            if (updateOrderDto == null || updateOrderDto.OrderID == Guid.Empty || string.IsNullOrEmpty(updateOrderDto.OrderStatus))
+            {
+                return BadRequest(new { Message = "Invalid order update data.", ErrorMessage = "Order ID or status is missing." });
+            }
+
+            try
+            {
+                var existingOrder = await orderRepository.GetOrderByIdAsync(updateOrderDto.OrderID);
+
+                if (existingOrder == null)
+                {
+                    return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
+                }
+
+                // Use AutoMapper to update the existing order
+                _mapper.Map(updateOrderDto, existingOrder);
+
+                var updatedOrder = await orderRepository.UpdateOrderAsync(existingOrder);
+
+                if (updatedOrder == null)
+                {
+                    return StatusCode(500, new { Message = "Failed to update order.", OrderId = existingOrder.OrderID, ErrorMessage = "Internal server error." });
+                }
+
+                return Ok(new
+                {
+                    Message = "Order updated successfully.",
+                    OrderId = updatedOrder.OrderID,
+                    ErrorMessage = string.Empty
+                });
+
+                //return Ok(new { Message = "Order updated successfully.", OrderID = updatedOrder.OrderID });
+            }
+            catch (Exception ex)
+            {
+                var response = new
+                {
+                    Message = "An error occurred while updating the order.",
+                    OrderId = updateOrderDto.OrderID,
+                    ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
+                };
+
+                return StatusCode(500, response);
+
+            }
         }
 
         //[HttpPut]

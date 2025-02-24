@@ -19,7 +19,7 @@ WORKDIR /app
 COPY --from=build /app/out .
 
 # Expose the ports the application runs on
-EXPOSE 3016
+EXPOSE 3017
 
 # Copy the HTTPS certificates
 #COPY /path/to/https/certificate.pfx /https/certificate.pfx

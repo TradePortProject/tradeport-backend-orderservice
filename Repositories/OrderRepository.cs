@@ -24,6 +24,30 @@ namespace OrderManagement.Repositories
             return order;
         }
 
+        public async Task<Order?> GetOrderByIdAsync(Guid orderId)
+        {
+            return await dbContext.Order.FindAsync(orderId);
+        }
+
+        public async Task<Order?> UpdateOrderAsync(Order order)
+        {
+            var existingOrder = await dbContext.Order.FindAsync(order.OrderID);
+
+            if (existingOrder == null)
+            {
+                return null; // Order not found
+            }
+
+            // Only update the fields that are allowed to change
+            existingOrder.OrderStatus = order.OrderStatus;
+            existingOrder.DeliveryPersonnelID = order.DeliveryPersonnelID ?? null;
+            existingOrder.UpdatedOn = DateTime.UtcNow; // Ensure UpdatedOn timestamp is recorded
+
+            dbContext.Order.Update(existingOrder);
+            await dbContext.SaveChangesAsync();
+            return existingOrder;
+        }
+
         //public async Task<Product?> UpdateProductAsync(Guid id, Product product)
         //{
         //    var productObj = await dbContext.Products.FindAsync(id);

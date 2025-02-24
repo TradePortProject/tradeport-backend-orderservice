@@ -55,19 +55,27 @@ builder.Services.AddCors(options =>
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(3015); // HTTP port
-    options.ListenAnyIP(3016);
+    options.ListenAnyIP(3017); // HTTP port
+    options.ListenAnyIP(3018);
     //options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps()); // HTTPS port
 });
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseSwagger();
+//    app.UseSwaggerUI();
+//}
+
+// Enable Swagger for all environments
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Management API v1");
+    c.RoutePrefix = "swagger"; // Access at http://localhost:3017/swagger
+});
 
 app.UseHttpsRedirection();
 

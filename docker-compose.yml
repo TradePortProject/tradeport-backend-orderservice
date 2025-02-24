@@ -2,9 +2,9 @@ services:
   productservice:
     build: .
     ports:
-      - "3016:3016"
+      - "3017:3017"
     environment:
-      - ASPNETCORE_URLS=http://+:3016
+      - ASPNETCORE_URLS=http://+:3017
       - DB_USER=sa
       - DB_PASSWORD=Your_password123
       - DB_SERVER=mssql
