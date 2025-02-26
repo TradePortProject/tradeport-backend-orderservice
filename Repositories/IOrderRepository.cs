@@ -15,6 +15,7 @@ namespace OrderManagement.Repositories
         Task<Order> CreateOrderAsync(Order order);
         Task<Order?> GetOrderByIdAsync(Guid orderId);
         Task<Order?> UpdateOrderAsync(Order order);
+        Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID);
 
         //Task<Order?> UpdateProductAsync(Guid Id, Order order);
 

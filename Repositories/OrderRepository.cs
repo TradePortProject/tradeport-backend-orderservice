@@ -47,6 +47,10 @@ namespace OrderManagement.Repositories
             await dbContext.SaveChangesAsync();
             return existingOrder;
         }
+        public async Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID)
+        {
+            return await FindByCondition(order => order.ManufacturerID == manufacturerID).ToListAsync();
+        }
 
         //public async Task<Product?> UpdateProductAsync(Guid id, Product product)
         //{
