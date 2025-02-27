@@ -239,6 +239,7 @@ namespace OrderManagement.Controllers
             }
         }
 
+        //GetOrders by Manufacturer id 
         [HttpGet("GetOrdersByManufacturerId/{manufacturerId}")]
         public async Task<IActionResult> GetOrdersByManufacturerId(Guid manufacturerId)
         {
