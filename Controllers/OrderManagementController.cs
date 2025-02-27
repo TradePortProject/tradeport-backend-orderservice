@@ -296,6 +296,73 @@ namespace OrderManagement.Controllers
             }
         }
 
+
+        [HttpGet]
+        [Route("{id}")]
+        public async Task<IActionResult> GetOrderById(Guid id)
+        {            
+            try
+            {
+                // Get orders by ManufacturerID
+                var order = await orderRepository.GetOrderByOrderIdAsync(id);
+                if (order == null || !order.Any())
+                {
+                    return Ok(new
+                    {
+                        Message = "Failed",
+                        ErrorMessage = "No order found for the provided order ID."
+                    });
+                }
+
+                // Get related order details for each order
+                var orderDetails = await orderDetailsRepository.FindByCondition(od => order.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
+                
+                // Map entities to DTOs
+                var orderDto = _mapper.Map<List<GetOrderDTO>>(order);
+                var orderDetailsDto = _mapper.Map<List<GetOrderDetailsDTO>>(orderDetails);
+                return Ok(new
+                {
+
+                    Message = "Order fetched successfully.",
+                    ErrorMessage = string.Empty,
+                    Data = orderDto.Select(order => new
+                    {
+                        orderID =  order.OrderID,
+                        retailerID = order.RetailerID,
+                        manufacturerID = order.ManufacturerID,
+                        deliveryPersonnelId = order.DeliveryPersonnelID,
+                        orderStatus = order.OrderStatus,
+                        totalPrice = order.TotalPrice,
+                        paymentMode = order.PaymentMode,
+                        paymentCurrency = order.PaymentCurrency,
+                        shippingCost = order.ShippingCost,
+                        shippingCurrency = order.ShippingCurrency,
+                        shippingAddress = order.ShippingAddress,
+                        createdOn = order.CreatedOn,
+                        createdBy = order.CreatedBy,
+                        updatedOn = order.UpdatedOn,
+                        updatedBy = order.UpdatedBy,
+                        orderDetails = orderDetailsDto.Select(detail => new
+                        {
+                            orderDetailid = detail.OrderDetailID,
+                            productID = detail.ProductID,
+                            quantity = detail.Quantity,
+                            productPrice = detail.ProductPrice
+                        }).ToList()
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Message = "An error occurred while retrieving the orders for - ",
+                    ManufacturerId = id,
+                    ErrorMessage = ex.Message
+                });
+            }
+        }
+
         //[HttpPut]
         //[Route("{id}")]
         //public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductDTO updateProductRequestDto)

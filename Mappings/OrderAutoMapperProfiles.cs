@@ -16,6 +16,15 @@ namespace OrderManagement.Mappings
             CreateMap<OrderDetails, CreateOrderDetailsDTO>();
             CreateMap<CreateOrderDetailsDTO, OrderDetails>();
 
+            CreateMap<Order, GetOrderDTO>();
+
+            CreateMap<GetOrderDTO, Order>();
+
+            CreateMap<OrderDetails, GetOrderDetailsDTO>();
+
+            CreateMap<GetOrderDetailsDTO, OrderDetails>();
+
+
             // Convert string to int when mapping DTO → Entity
             CreateMap<UpdateOrderDTO, Order>()
                 .ForMember(dest => dest.OrderStatus,
@@ -32,6 +41,8 @@ namespace OrderManagement.Mappings
                 .ForMember(dest => dest.DeliveryPersonnelID,
                     opt => opt.MapFrom(src => src.DeliveryPersonnelID.HasValue
                         ? src.DeliveryPersonnelID.ToString() : ""));
+
+
         }
 
         // Helper to get enum int value from display name

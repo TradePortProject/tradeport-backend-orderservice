@@ -22,5 +22,20 @@ namespace OrderManagement.Models
         [Column(TypeName = "decimal(10,2)")]
         public decimal ProductPrice { get; set; }
 
+
+        [Required]
+        public bool IsActive { get; set; }
+
+        [Required]
+        public DateTime CreatedOn { get; set; }
+
+        [Required]
+        public Guid CreatedBy { get; set; }
+
+        public DateTime? UpdatedOn { get; set; }
+
+        public Guid? UpdatedBy { get; set; }
+
     }
 }
+

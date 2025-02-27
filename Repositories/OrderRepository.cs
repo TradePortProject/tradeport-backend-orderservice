@@ -51,6 +51,11 @@ namespace OrderManagement.Repositories
         {
             return await FindByCondition(order => order.ManufacturerID == manufacturerID).ToListAsync();
         }
+        
+            public async Task<List<Order>> GetOrderByOrderIdAsync(Guid orderId)
+        {
+            return await FindByCondition(order => order.OrderID == orderId).ToListAsync();
+        }
 
         //public async Task<Product?> UpdateProductAsync(Guid id, Product product)
         //{
