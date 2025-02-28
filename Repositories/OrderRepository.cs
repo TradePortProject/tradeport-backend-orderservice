@@ -29,6 +29,13 @@ namespace OrderManagement.Repositories
             return await dbContext.Order.FindAsync(orderId);
         }
 
+        public async Task<IEnumerable<OrderDetails>> GetOrderDetailsByOrderIdAsync(Guid orderId)
+        {
+            return await dbContext.OrderDetails
+                .Where(od => od.OrderID == orderId)
+                .ToListAsync();
+        }
+
         public async Task<Order?> UpdateOrderAsync(Order order)
         {
             var existingOrder = await dbContext.Order.FindAsync(order.OrderID);

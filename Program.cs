@@ -5,6 +5,7 @@ using OrderManagement.Repositories;
 using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
+using OrderManagement.ExternalServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,6 +60,8 @@ builder.WebHost.ConfigureKestrel(options =>
     options.ListenAnyIP(3018);
     //options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps()); // HTTPS port
 });
+
+builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
 var app = builder.Build();
 

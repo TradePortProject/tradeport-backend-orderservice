@@ -8,6 +8,7 @@ using OrderManagement.Models.DTO;
 using OrderManagement.Repositories;
 using AutoMapper;
 using OrderManagement.Common;
+using OrderManagement.ExternalServices;
 
 
 namespace OrderManagement.Controllers
@@ -238,6 +239,77 @@ namespace OrderManagement.Controllers
 
             }
         }
+
+        [HttpPut("AcceptOrder")]
+        public async Task<IActionResult> AcceptOrder([FromBody] AcceptOrderDTO acceptOrderDto, [FromServices] IProductServiceClient productServiceClient)
+        {
+            if (acceptOrderDto == null || acceptOrderDto.OrderID == Guid.Empty || string.IsNullOrEmpty(acceptOrderDto.OrderStatus))
+            {
+                return BadRequest(new { Message = "Invalid request.", ErrorMessage = "OrderID and OrderStatus are required." });
+            }
+
+            try
+            {
+                var existingOrder = await orderRepository.GetOrderByIdAsync(acceptOrderDto.OrderID);
+                if (existingOrder == null)
+                {
+                    return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
+                }
+
+                if (existingOrder.OrderStatus != (int)OrderStatus.New)
+                {
+                    return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
+                }
+
+                _mapper.Map(acceptOrderDto, existingOrder);
+
+                var orderDetails = await orderRepository.GetOrderDetailsByOrderIdAsync(acceptOrderDto.OrderID);
+                if (orderDetails == null || !orderDetails.Any())
+                {
+                    return BadRequest(new { Message = "No order details found.", ErrorMessage = "Cannot process order without items." });
+                }
+
+                foreach (var item in orderDetails)
+                {
+                    var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
+
+                    if (product == null)
+                    {
+                        return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {item.ProductID} does not exist." });
+                    }
+                    else
+                    { 
+
+                    }
+
+                    if (product.Quantity == null || product.Quantity < item.Quantity)
+                    {
+                        return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {item.ProductID} has insufficient quantity." });
+                    }
+
+                    product.Quantity -= item.Quantity;
+
+                    bool productUpdated = await productServiceClient.UpdateProductAsync(item.ProductID, product);
+                    if (!productUpdated)
+                    {
+                        return StatusCode(500, new { Message = "Failed to update product.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
+                    }
+                }
+
+                var updatedOrder = await orderRepository.UpdateOrderAsync(existingOrder);
+                if (updatedOrder == null)
+                {
+                    return StatusCode(500, new { Message = "Failed to update order.", ErrorMessage = "Internal server error." });
+                }
+
+                return Ok(new { Message = "Order accepted successfully.", OrderID = updatedOrder.OrderID });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
+            }
+        }
+
 
         [HttpGet("GetOrdersByManufacturerId/{manufacturerId}")]
         public async Task<IActionResult> GetOrdersByManufacturerId(Guid manufacturerId)
