@@ -16,6 +16,15 @@ namespace OrderManagement.Mappings
             CreateMap<OrderDetails, CreateOrderDetailsDTO>();
             CreateMap<CreateOrderDetailsDTO, OrderDetails>();
 
+            CreateMap<Order, GetOrderDTO>();
+
+            CreateMap<GetOrderDTO, Order>();
+
+            CreateMap<OrderDetails, GetOrderDetailsDTO>();
+
+            CreateMap<GetOrderDetailsDTO, OrderDetails>();
+
+
             // Convert string to int when mapping DTO → Entity
             CreateMap<UpdateOrderDTO, Order>()
                 .ForMember(dest => dest.OrderStatus,
@@ -33,22 +42,7 @@ namespace OrderManagement.Mappings
                     opt => opt.MapFrom(src => src.DeliveryPersonnelID.HasValue
                         ? src.DeliveryPersonnelID.ToString() : ""));
 
-            // ✅ Mapping for Accepting Order
-            CreateMap<AcceptOrderDTO, Order>()
-                .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.New))
-                .ForMember(dest => dest.DeliveryPersonnelID,
-                    opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.DeliveryPersonnelID)
-                        ? (Guid?)null : Guid.Parse(src.DeliveryPersonnelID)))
-                .ForMember(dest => dest.UpdatedOn, opt => opt.MapFrom(src => DateTime.UtcNow));
 
-            // ✅ Mapping for Converting Order Back to DTO
-            CreateMap<Order, AcceptOrderDTO>()
-                .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => ((OrderStatus)src.OrderStatus).ToString()))
-                .ForMember(dest => dest.DeliveryPersonnelID,
-                    opt => opt.MapFrom(src => src.DeliveryPersonnelID.HasValue
-                        ? src.DeliveryPersonnelID.ToString() : ""));
         }
 
         // Helper to get enum int value from display name
