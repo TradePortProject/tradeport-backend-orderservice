@@ -1,8 +1,28 @@
-﻿namespace OrderManagement.Models.DTO
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace OrderManagement.Models.DTO
 {
     public class ProductDTO
     {
+        [JsonPropertyName("productID")]
         public Guid ProductID { get; set; }
-        public int? Quantity { get; set; } // Only fields required for stock updates
+
+        [JsonPropertyName("quantity")]
+        public int? Quantity { get; set; }
+
+    }
+
+    public class ProductApiResponse
+    {
+        [JsonPropertyName("message")]
+        public string Message { get; set; }
+
+        [JsonPropertyName("product")]
+        public List<ProductDTO> Products { get; set; } // ✅ API returns a list
+
+        [JsonPropertyName("errorMessage")]
+        public string ErrorMessage { get; set; }
     }
 }

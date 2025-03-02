@@ -277,22 +277,18 @@ namespace OrderManagement.Controllers
                     {
                         return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {item.ProductID} does not exist." });
                     }
-                    else
-                    { 
-
-                    }
 
                     if (product.Quantity == null || product.Quantity < item.Quantity)
                     {
-                        return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {item.ProductID} has insufficient quantity." });
+                        return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
                     }
 
-                    product.Quantity -= item.Quantity;
+                    int updatedQuantity = (product.Quantity ?? 0) - item.Quantity;
+                    bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(item.ProductID, updatedQuantity);
 
-                    bool productUpdated = await productServiceClient.UpdateProductAsync(item.ProductID, product);
                     if (!productUpdated)
                     {
-                        return StatusCode(500, new { Message = "Failed to update product.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
+                        return StatusCode(500, new { Message = "Failed to update product quantity.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
                     }
                 }
 
@@ -309,7 +305,6 @@ namespace OrderManagement.Controllers
                 return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
             }
         }
-
 
         //GetOrders by Manufacturer id 
         [HttpGet("GetOrdersByManufacturerId/{manufacturerId}")]

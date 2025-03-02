@@ -6,6 +6,6 @@ namespace OrderManagement.ExternalServices
     public interface IProductServiceClient
     {
         Task<ProductDTO> GetProductByIdAsync(Guid productId);
-        Task<bool> UpdateProductAsync(Guid productId, ProductDTO product);
+        Task<bool> UpdateProductQuantityAsync(Guid productId, int quantity);
     }
 }
