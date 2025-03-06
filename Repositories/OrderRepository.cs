@@ -56,7 +56,8 @@ namespace OrderManagement.Repositories
         }
         public async Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID)
         {
-            return await FindByCondition(order => order.ManufacturerID == manufacturerID).ToListAsync();
+            //Need to updated the query to get the order details by manufacturerID
+            return await FindByCondition(order => order.RetailerID == manufacturerID).ToListAsync();
         }
         
             public async Task<List<Order>> GetOrderByOrderIdAsync(Guid orderId)

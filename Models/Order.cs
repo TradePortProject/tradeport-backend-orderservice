@@ -19,9 +19,6 @@ namespace OrderManagement.Models
         [Required]
         public int OrderStatus { get; set; }
 
-        [Required]
-        public Guid ManufacturerID { get; set; }
-
 
         [Required]
         [Column(TypeName = "decimal(10,2)")]
