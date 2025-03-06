@@ -14,13 +14,15 @@ namespace OrderManagement.Data
 
         // Define your DbSets here
         public DbSet<OrderDetails> OrderDetails { get; set; }  // This is the DbSet for the Product entity
-
+        public DbSet<ShoppingCart> ShoppingCart { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Order>()
                 .ToTable("Orders");
             modelBuilder.Entity<OrderDetails>()
                .ToTable("OrderDetails");
+            modelBuilder.Entity<ShoppingCart>()
+              .ToTable("ShoppingCart");
             //modelBuilder.Entity<Order>()
             //    .Property(b => b.CreatedOn)
             //    .HasDefaultValueSql("getdate()");

@@ -21,13 +21,17 @@ namespace OrderManagement.Controllers
         private readonly AppDbContext dbContext;
         private readonly IOrderRepository orderRepository;
         private readonly IOrderDetailsRepository orderDetailsRepository;
+        private readonly IShoppingCartRepository shoppingCartRepository;
+        private readonly IProductServiceClient productServiceClient;
         private readonly IMapper _mapper;
-        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IMapper mapper)
+        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo,IMapper mapper, IProductServiceClient productServiceClient)
         {
             this.dbContext = appDbContext;
             this.orderRepository = orderRepo;
             this.orderDetailsRepository = orderDetailsRepo;
-            _mapper = mapper;
+            this.shoppingCartRepository = shoppingCartRepo;
+            this.productServiceClient = productServiceClient;
+            _mapper = mapper;          
         }
 
         //[HttpGet]
@@ -107,7 +111,7 @@ namespace OrderManagement.Controllers
         //}
 
 
-        [HttpPost]
+        [HttpPost("CreateOrder")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDTO orderRequestDto)
         {
 
@@ -123,7 +127,7 @@ namespace OrderManagement.Controllers
 
                 // Map the incoming CreateProductDTO to a Product entity.
                 var orderModel = _mapper.Map<CreateOrderDTO, Order>(orderRequestDto);
-                orderModel.OrderStatus = (int)OrderStatus.New;
+                orderModel.OrderStatus = (int)OrderStatus.Save;
                 orderModel.DeliveryPersonnelID = null;
                 orderModel.PaymentMode = (int)PaymentMode.Cash;
                 orderModel.TotalPrice = totalPrice;
@@ -142,8 +146,10 @@ namespace OrderManagement.Controllers
                     
                     // Set the OrderID and other fields for the OrderDetail
                     orderDetail.OrderID = orderModel.OrderID;
+                    orderDetail.ManufacturerID = orderModel.ManufacturerID;
                     orderDetail.CreatedBy = orderModel.CreatedBy;
-                     orderDetail.CreatedOn = DateTime.UtcNow;
+                    orderDetail.OrderItemStatus = (int)OrderStatus.Save;
+                    orderDetail.CreatedOn = DateTime.UtcNow;
                     orderDetail.IsActive = true;
 
                     // Save each OrderDetail one by one to the database
@@ -172,6 +178,67 @@ namespace OrderManagement.Controllers
             }
         }
 
+        [HttpPost("CreateShoppingCart")]
+        public async Task<IActionResult> CreateShoppingCartItemAsync([FromBody] CreateShoppingCartDTO shoppingCartDto)
+        {
+
+            if (shoppingCartDto == null )
+            {
+                return BadRequest(new { Message = "Invalid order data.", ErrorMessage = "Order details are missing." });
+            }
+
+            try
+            {
+              
+                var orderModel = _mapper.Map<CreateShoppingCartDTO, ShoppingCart>(shoppingCartDto);
+                orderModel.Status = (int)OrderStatus.Save;
+                orderModel.OrderQuantity = orderModel.OrderQuantity;
+                orderModel.ProductID = orderModel.ProductID;
+                orderModel.ProductPrice = orderModel.ProductPrice;
+                orderModel.ManufacturerID = orderModel.ManufacturerID;
+                orderModel.CreatedBy = orderModel.RetailerID;
+                orderModel.CreatedOn = DateTime.UtcNow;
+                orderModel.IsActive = true;
+
+                // Use Repository to create Product
+                orderModel = await shoppingCartRepository.CreateShoppingCartItemsAsync(orderModel);             
+
+                var response = new
+                {
+                    Message = "Items created to the cart successfully.",
+                    ShoppingCartID = orderModel.CartID,
+                    ErrorMessage = ""
+                };
+                return Ok(new { id = orderModel.CartID, response });
+            }
+
+            catch (Exception ex)
+            {
+                var response = new
+                {
+                    Message = "Item creation failed.",
+                    ShoppingCartID = string.Empty,
+                    ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
+                };
+
+                return StatusCode(500, response);
+            }
+        }
+
+
+        private async Task<bool> SetStockStatus(Guid productId, int quantity)
+        {
+            var product = await GetProductByProductID(productId);
+            return product != null && product.Quantity >= quantity;
+        }
+
+        private async Task<string> SetProductImagePath(Guid productID)
+        {
+            var product = await GetProductByProductID(productID);
+            return string.Empty;
+        }
+
+
         private decimal CalculateShippingCost(decimal totalPrice)
         {
             decimal shippingCost = totalPrice * 0.03m;
@@ -189,6 +256,61 @@ namespace OrderManagement.Controllers
             }
             return totalPrice;
         }
+
+        //GetOrders by RetailerId id 
+        [HttpGet("GetShoppingCart/{retailerID}")]
+        public async Task<IActionResult> GetShoppingCartByRetailerId(Guid retailerID)
+        {
+            try
+            {
+                // Get orders by ManufacturerID
+                var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID,(int)OrderStatus.Save);
+               
+                if (shoppingCart == null)
+                {
+                    return Ok(new
+                    {
+                        Message = "Failed",
+                        ErrorMessage = "No order items found for the provided Retailer."
+                    });
+                }
+
+               
+                // Map entities to DTOs
+                var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
+
+                return Ok(new
+                {
+
+                    Message = "Order Items fetched successfully.",
+                    ErrorMessage = string.Empty,
+                    NumberOfOrderItems = shoppingCartDTO.Count,
+                    Data = shoppingCartDTO.Select(order => new
+                    {
+                        retailerID = order.RetailerID,
+                        productId = order.ProductID,
+                        productPrice = order.ProductPrice,
+                        orderQuantity = order.OrderQuantity,
+                        TotalPrice = order.OrderQuantity * order.ProductPrice,
+                        IsOutOfStock= true,
+                        ProductImagePath= string.Empty
+                        //IsOutOfStock = SetStockStatus(order.ProductID,order.OrderQuantity),
+                        //ProductImagePath = SetProductImagePath(order.ProductID)
+
+                    }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Message = "An error occurred while retrieving the order items for - ",
+                    RetailerID = retailerID,
+                    ErrorMessage = ex.Message
+                });
+            }
+        }
+
 
         [HttpPut("UpdateOrder")]
         public async Task<IActionResult> UpdateOrder([FromBody] UpdateOrderDTO updateOrderDto)
@@ -256,7 +378,7 @@ namespace OrderManagement.Controllers
                     return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
                 }
 
-                if (existingOrder.OrderStatus != (int)OrderStatus.New)
+                if (existingOrder.OrderStatus != (int)OrderStatus.Submitted)
                 {
                     return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
                 }
@@ -305,7 +427,17 @@ namespace OrderManagement.Controllers
                 return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
             }
         }
+        private async Task<ProductDTO> GetProductByProductID(Guid productID)
+        {
+            var product = await productServiceClient.GetProductByIdAsync(productID);
 
+            if (product == null)
+            {
+                throw new Exception($"ProductID {productID} does not exist.");
+            }
+
+            return product;
+        }
         //GetOrders by Manufacturer id 
         [HttpGet("GetOrdersByManufacturerId/{manufacturerId}")]
         public async Task<IActionResult> GetOrdersByManufacturerId(Guid manufacturerId)
@@ -337,7 +469,6 @@ namespace OrderManagement.Controllers
                     {
 
                         retailerID = order.RetailerID,
-                        manufacturerID = order.ManufacturerID,
                         paymentMode = order.PaymentMode,
                         paymentCurrency = order.PaymentCurrency,
                         shippingCost = order.ShippingCost,
@@ -347,6 +478,7 @@ namespace OrderManagement.Controllers
                         orderDetails = orderDetailsDto.Select(detail => new
                         {
                             productID = detail.ProductID,
+                            manufacturerId = detail.ManufacturerID,
                             quantity = detail.Quantity,
                             productPrice = detail.ProductPrice
                         }).ToList()
