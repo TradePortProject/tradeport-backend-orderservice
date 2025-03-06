@@ -146,7 +146,9 @@ namespace OrderManagement.Controllers
                     
                     // Set the OrderID and other fields for the OrderDetail
                     orderDetail.OrderID = orderModel.OrderID;
-                    orderDetail.ManufacturerID = orderModel.ManufacturerID;
+                    orderDetail.Quantity = orderDetail.Quantity;
+                    orderDetail.ProductPrice = orderDetail.ProductPrice;
+                    orderDetail.ManufacturerID = orderDetail.ManufacturerID;
                     orderDetail.CreatedBy = orderModel.CreatedBy;
                     orderDetail.OrderItemStatus = (int)OrderStatus.Save;
                     orderDetail.CreatedOn = DateTime.UtcNow;
