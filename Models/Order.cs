@@ -13,8 +13,6 @@ namespace OrderManagement.Models
         [Required]
         public Guid RetailerID { get; set; }
 
-        [Required]
-        public Guid ManufacturerID { get; set; }
 
         public Guid? DeliveryPersonnelID { get; set; }
 
@@ -22,7 +20,8 @@ namespace OrderManagement.Models
         public int OrderStatus { get; set; }
 
         [Required]
-        public bool IsActive { get; set; }
+        public Guid ManufacturerID { get; set; }
+
 
         [Required]
         [Column(TypeName = "decimal(10,2)")]
@@ -45,16 +44,6 @@ namespace OrderManagement.Models
 
         [StringLength(500)]
         public string ShippingAddress { get; set; }
-
-        [Required]
-        public DateTime CreatedOn { get; set; }
-
-        [Required]
-        public Guid CreatedBy { get; set; }
-
-        public DateTime? UpdatedOn { get; set; }
-
-        public Guid? UpdatedBy { get; set; }
 
         //public List<OrderDetails> OrderDetails { get; set; }
 

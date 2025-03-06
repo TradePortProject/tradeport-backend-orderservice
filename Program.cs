@@ -39,7 +39,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Register repository
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
-
+builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -65,19 +65,20 @@ builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-//    app.UseSwagger();
-//    app.UseSwaggerUI();
-//}
+//Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Enable Swagger for all environments
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Management API v1");
-    c.RoutePrefix = "swagger"; // Access at http://localhost:3017/swagger
+    c.RoutePrefix = "swagger"; // Access at http://localhost:3016/swagger
 });
 
 app.UseHttpsRedirection();

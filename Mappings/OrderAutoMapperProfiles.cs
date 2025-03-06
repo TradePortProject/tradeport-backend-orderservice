@@ -23,12 +23,17 @@ namespace OrderManagement.Mappings
             CreateMap<OrderDetails, GetOrderDetailsDTO>();
 
             CreateMap<GetOrderDetailsDTO, OrderDetails>();
+            CreateMap<ShoppingCart, CreateShoppingCartDTO>();
+            CreateMap<CreateShoppingCartDTO, ShoppingCart>();
+
+            CreateMap<ShoppingCart, ShoppingCartDTO>();
+            CreateMap<ShoppingCartDTO, ShoppingCart>();
 
 
             // Convert string to int when mapping DTO → Entity
             CreateMap<UpdateOrderDTO, Order>()
                 .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.New))
+                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.Submitted))
                 .ForMember(dest => dest.DeliveryPersonnelID,
                     opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.DeliveryPersonnelID)
                         ? (Guid?)null : Guid.Parse(src.DeliveryPersonnelID)))
@@ -45,7 +50,7 @@ namespace OrderManagement.Mappings
             // ✅ Mapping for Accepting Order
             CreateMap<AcceptOrderDTO, Order>()
                 .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.New))
+                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.Submitted))
                 .ForMember(dest => dest.DeliveryPersonnelID,
                     opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.DeliveryPersonnelID)
                         ? (Guid?)null : Guid.Parse(src.DeliveryPersonnelID)))

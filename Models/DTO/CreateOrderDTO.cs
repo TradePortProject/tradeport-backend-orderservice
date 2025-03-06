@@ -5,8 +5,7 @@ namespace OrderManagement.Models.DTO
 {
     public class CreateOrderDTO
     {
-        public Guid RetailerID { get; set; }
-        public Guid ManufacturerID { get; set; }
+        public Guid RetailerID { get; set; }    
         public int PaymentMode { get; set; }
         public string PaymentCurrency { get; set; }
       

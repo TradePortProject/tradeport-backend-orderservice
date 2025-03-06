@@ -5,8 +5,10 @@ namespace OrderManagement.Common
     public enum OrderStatus
     {
         //Order Status (New, InProgress, Shipped, Delivered)
-        [Display(Name = "New")]
-        New = 1,
+        [Display(Name = "Save")]
+        Save = 1,
+        [Display(Name = "Submitted")]
+        Submitted = 2,
         [Display(Name = "In Progress")]
         InProgress = 2,
         [Display(Name = "Shipped")]
