@@ -294,7 +294,7 @@ namespace OrderManagement.Controllers
                         productPrice = order.ProductPrice,
                         orderQuantity = order.OrderQuantity,
                         TotalPrice = order.OrderQuantity * order.ProductPrice,
-                        IsOutOfStock= true,
+                        IsOutOfStock= false,
                         ProductImagePath= string.Empty
                         //IsOutOfStock = SetStockStatus(order.ProductID,order.OrderQuantity),
                         //ProductImagePath = SetProductImagePath(order.ProductID)
