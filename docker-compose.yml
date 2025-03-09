@@ -1,5 +1,5 @@
 services:
-  productservice:
+  orderservice:
     build: .
     ports:
       - "3017:3017"
