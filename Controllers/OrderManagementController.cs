@@ -24,14 +24,14 @@ namespace OrderManagement.Controllers
         private readonly IShoppingCartRepository shoppingCartRepository;
         private readonly IProductServiceClient productServiceClient;
         private readonly IMapper _mapper;
-        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo,IMapper mapper, IProductServiceClient productServiceClient)
+        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient)
         {
             this.dbContext = appDbContext;
             this.orderRepository = orderRepo;
             this.orderDetailsRepository = orderDetailsRepo;
             this.shoppingCartRepository = shoppingCartRepo;
             this.productServiceClient = productServiceClient;
-            _mapper = mapper;          
+            _mapper = mapper;
         }
 
         //[HttpGet]
@@ -143,7 +143,7 @@ namespace OrderManagement.Controllers
                 {
                     // Map CreateOrderDetailRequestDto to OrderDetail
                     var orderDetail = _mapper.Map<OrderDetails>(detailDto);
-                    
+
                     // Set the OrderID and other fields for the OrderDetail
                     orderDetail.OrderID = orderModel.OrderID;
                     orderDetail.Quantity = orderDetail.Quantity;
@@ -184,14 +184,14 @@ namespace OrderManagement.Controllers
         public async Task<IActionResult> CreateShoppingCartItemAsync([FromBody] CreateShoppingCartDTO shoppingCartDto)
         {
 
-            if (shoppingCartDto == null )
+            if (shoppingCartDto == null)
             {
                 return BadRequest(new { Message = "Invalid order data.", ErrorMessage = "Order details are missing." });
             }
 
             try
             {
-              
+
                 var orderModel = _mapper.Map<CreateShoppingCartDTO, ShoppingCart>(shoppingCartDto);
                 orderModel.Status = (int)OrderStatus.Save;
                 orderModel.OrderQuantity = orderModel.OrderQuantity;
@@ -203,7 +203,7 @@ namespace OrderManagement.Controllers
                 orderModel.IsActive = true;
 
                 // Use Repository to create Product
-                orderModel = await shoppingCartRepository.CreateShoppingCartItemsAsync(orderModel);             
+                orderModel = await shoppingCartRepository.CreateShoppingCartItemsAsync(orderModel);
 
                 var response = new
                 {
@@ -265,19 +265,19 @@ namespace OrderManagement.Controllers
         {
             try
             {
-                // Get orders by ManufacturerID
-                var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID,(int)OrderStatus.Save);
-               
-                if (shoppingCart == null)
+                // Get orders by RetailerID
+                var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID, (int)OrderStatus.Save);
+
+                if (shoppingCart == null || shoppingCart.Count == 0)
                 {
-                    return Ok(new
+                    return StatusCode(404, new
                     {
-                        Message = "Failed",
-                        ErrorMessage = "No order items found for the provided Retailer."
+                        Message = "No order items found for the provided Retailer.",
+                        ErrorMessage = ""
                     });
                 }
 
-               
+
                 // Map entities to DTOs
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
 
@@ -294,8 +294,8 @@ namespace OrderManagement.Controllers
                         productPrice = order.ProductPrice,
                         orderQuantity = order.OrderQuantity,
                         TotalPrice = order.OrderQuantity * order.ProductPrice,
-                        IsOutOfStock= false,
-                        ProductImagePath= string.Empty
+                        IsOutOfStock = false,
+                        ProductImagePath = string.Empty
                         //IsOutOfStock = SetStockStatus(order.ProductID,order.OrderQuantity),
                         //ProductImagePath = SetProductImagePath(order.ProductID)
 
@@ -306,7 +306,7 @@ namespace OrderManagement.Controllers
             {
                 return StatusCode(500, new
                 {
-                    Message = "An error occurred while retrieving the order items for - ",
+                    Message = "An error occurred while retrieving the order items for - " + retailerID,
                     RetailerID = retailerID,
                     ErrorMessage = ex.Message
                 });
@@ -502,7 +502,7 @@ namespace OrderManagement.Controllers
         [HttpGet]
         [Route("{id}")]
         public async Task<IActionResult> GetOrderById(Guid id)
-        {            
+        {
             try
             {
                 // Get orders by ManufacturerID
@@ -518,7 +518,7 @@ namespace OrderManagement.Controllers
 
                 // Get related order details for each order
                 var orderDetails = await orderDetailsRepository.FindByCondition(od => order.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
-                
+
                 // Map entities to DTOs
                 var orderDto = _mapper.Map<List<GetOrderDTO>>(order);
                 var orderDetailsDto = _mapper.Map<List<GetOrderDetailsDTO>>(orderDetails);
@@ -529,7 +529,7 @@ namespace OrderManagement.Controllers
                     ErrorMessage = string.Empty,
                     Data = orderDto.Select(order => new
                     {
-                        orderID =  order.OrderID,
+                        orderID = order.OrderID,
                         retailerID = order.RetailerID,
                         manufacturerID = order.ManufacturerID,
                         deliveryPersonnelId = order.DeliveryPersonnelID,
