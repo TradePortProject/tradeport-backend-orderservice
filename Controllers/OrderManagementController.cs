@@ -155,16 +155,15 @@ namespace OrderManagement.Controllers
                     orderDetail.IsActive = true;
 
                     // Save each OrderDetail one by one to the database
-                    await orderDetailsRepository.CreateOrderDetailsAsync(orderDetail);
+                    await orderDetailsRepository.CreateOrderDetailsAsync(orderDetail);              
                 }
 
                 var response = new
                 {
                     Message = "Order created successfully.",
-                    OrderId = orderModel.OrderID,
                     ErrorMessage = ""
                 };
-                return Ok(new { id = orderModel.OrderID, response });
+                return Ok(new { orderID = orderModel.OrderID, response });
             }
 
             catch (Exception ex)
@@ -172,7 +171,6 @@ namespace OrderManagement.Controllers
                 var response = new
                 {
                     Message = "Order creation failed.",
-                    OrderId = string.Empty,
                     ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
                 };
 
@@ -207,11 +205,10 @@ namespace OrderManagement.Controllers
 
                 var response = new
                 {
-                    Message = "Items created to the cart successfully.",
-                    ShoppingCartID = orderModel.CartID,
+                    Message = "Item added to the cart successfully.",
                     ErrorMessage = ""
                 };
-                return Ok(new { id = orderModel.CartID, response });
+                return Ok(new {cartID = orderModel.CartID, response });
             }
 
             catch (Exception ex)
@@ -287,7 +284,7 @@ namespace OrderManagement.Controllers
                     Message = "Order Items fetched successfully.",
                     ErrorMessage = string.Empty,
                     NumberOfOrderItems = shoppingCartDTO.Count,
-                    Data = shoppingCartDTO.Select(order => new
+                    CartDetails = shoppingCartDTO.Select(order => new
                     {
                         retailerID = order.RetailerID,
                         productId = order.ProductID,
@@ -307,7 +304,6 @@ namespace OrderManagement.Controllers
                 return StatusCode(500, new
                 {
                     Message = "An error occurred while retrieving the order items for - " + retailerID,
-                    RetailerID = retailerID,
                     ErrorMessage = ex.Message
                 });
             }
