@@ -42,7 +42,19 @@ namespace OrderManagement.Models
         [StringLength(500)]
         public string ShippingAddress { get; set; }
 
+        [Required]
+        public DateTime CreatedOn { get; set; } = DateTime.UtcNow; // Ensure this has a valid value
+
+        public Guid CreatedBy { get; set; }
+
+        public DateTime? UpdatedOn { get; set; } = null; 
+
+        public Guid? UpdatedBy { get; set; }
+
         //public List<OrderDetails> OrderDetails { get; set; }
+
+        // Add this navigation property for OrderDetails
+        public ICollection<OrderDetails> OrderDetails { get; set; } = new List<OrderDetails>();
 
     }
 }

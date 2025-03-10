@@ -16,6 +16,9 @@ namespace OrderManagement.Mappings
             CreateMap<OrderDetails, CreateOrderDetailsDTO>();
             CreateMap<CreateOrderDetailsDTO, OrderDetails>();
 
+            CreateMap<Order, OrderDto>();
+            CreateMap<OrderDetails, OrderDetailsDto>();
+
             CreateMap<Order, GetOrderDTO>();
 
             CreateMap<GetOrderDTO, Order>();

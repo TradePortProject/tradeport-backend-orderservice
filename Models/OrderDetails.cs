@@ -11,7 +11,10 @@ namespace OrderManagement.Models
        
         [Required]
         public Guid OrderID { get; set; } // Foreign key to Order
-       
+
+        [ForeignKey("OrderID")]
+        public Order Order { get; set; } // Navigation property
+
         [Required]
         public Guid ProductID { get; set; }
 
@@ -28,6 +31,15 @@ namespace OrderManagement.Models
         [Required]
         [Column(TypeName = "decimal(10,2)")]
         public decimal ProductPrice { get; set; }
+
+        [Required]
+        public DateTime CreatedOn { get; set; } = DateTime.UtcNow; // Ensure a valid default
+
+        public Guid CreatedBy { get; set; }
+
+        public DateTime? UpdatedOn { get; set; } = null; 
+
+        public Guid? UpdatedBy { get; set; }
 
     }
 }

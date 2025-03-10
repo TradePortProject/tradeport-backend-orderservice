@@ -16,7 +16,6 @@ namespace OrderManagement.Repositories
             this.dbContext = dbContextRepo;
         }
 
-
         public async Task<Order> CreateOrderAsync(Order order)
         {
             await dbContext.Order.AddAsync(order);
@@ -64,6 +63,45 @@ namespace OrderManagement.Repositories
         {
             return await FindByCondition(order => order.OrderID == orderId).ToListAsync();
         }
+
+        public async Task<(IEnumerable<Order>, int)> GetFilteredOrdersAsync(
+        Guid? orderId, Guid? retailerId, Guid? deliveryPersonnelId,
+        int? orderStatus, Guid? manufacturerId, int? orderItemStatus,
+        int pageNumber, int pageSize)
+        {
+            var query = dbContext.Order
+                .Include(o => o.OrderDetails) //Ensure OrderDetails are included
+                .AsQueryable();
+
+            if (orderId.HasValue)
+                query = query.Where(o => o.OrderID == orderId.Value);
+
+            if (retailerId.HasValue)
+                query = query.Where(o => o.RetailerID == retailerId.Value);
+
+            if (deliveryPersonnelId.HasValue)
+                query = query.Where(o => o.DeliveryPersonnelID == deliveryPersonnelId.Value);
+
+            if (orderStatus.HasValue)
+                query = query.Where(o => o.OrderStatus == orderStatus.Value);
+
+            if (manufacturerId.HasValue)
+                query = query.Where(o => o.OrderDetails.Any(od => od.ManufacturerID == manufacturerId.Value));
+
+            if (orderItemStatus.HasValue)
+                query = query.Where(o => o.OrderDetails.Any(od => od.OrderItemStatus == orderItemStatus.Value));
+
+            int totalRecords = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+
+            var paginatedOrders = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (paginatedOrders, totalPages);
+        }
+
 
         //public async Task<Product?> UpdateProductAsync(Guid id, Product product)
         //{

@@ -34,41 +34,55 @@ namespace OrderManagement.Controllers
             _mapper = mapper;
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetAllOrders()
-        //{
-        //    try
-        //    {
-        //        var orderModel = await orderRepository.GetAllOrdersAsync();
+        [HttpGet("GetOrdersAndOrderDetails")]
+        public async Task<IActionResult> GetOrdersAndOrderDetails(
+        [FromQuery] Guid? orderId,
+        [FromQuery] Guid? retailerId,
+        [FromQuery] Guid? deliveryPersonnelId,
+        [FromQuery] int? orderStatus,
+        [FromQuery] Guid? manufacturerId,
+        [FromQuery] int? orderItemStatus,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
+        {
+            var (orders, totalPages) = await orderRepository.GetFilteredOrdersAsync(
+                orderId, retailerId, deliveryPersonnelId, orderStatus, manufacturerId, orderItemStatus, pageNumber, pageSize);
 
-        //        if (orderModel == null || !orderModel.Any())
-        //        {
-        //            return NotFound(new
-        //            {
-        //                Message = "No orders found.",
-        //                ErrorMessage = "No data available."
-        //            });
-        //        }
+            var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
 
-        //        // Use AutoMapper to map the list of Product entities to ProductDTOs.
-        //        var productDTOs = _mapper.Map<List<OrderDTO>>(orderModel);
+            return Ok(new
+            {
+                Message = "Orders retrieved successfully.",
+                ErrorMessage = string.Empty,
+                Orders = orderDtos.Select(order => new
+                {
+                    OrderID = order.OrderID,
+                    RetailerID = order.RetailerID,
+                    DeliveryPersonnelID = order.DeliveryPersonnelID,
+                    OrderStatus = order.OrderStatus,
+                    TotalPrice = order.TotalPrice,
+                    PaymentMode = order.PaymentMode,
+                    PaymentCurrency = order.PaymentCurrency,
+                    ShippingCost = order.ShippingCost,
+                    ShippingCurrency = order.ShippingCurrency,
+                    ShippingAddress = order.ShippingAddress,
+                    OrderDetails = order.OrderDetails.Select(detail => new
+                    {
+                        OrderDetailID = detail.OrderDetailID,
+                        ProductID = detail.ProductID,
+                        ManufacturerID = detail.ManufacturerID,
+                        Quantity = detail.Quantity,
+                        OrderItemStatus = detail.OrderItemStatus,
+                        ProductPrice = detail.ProductPrice
+                    }).ToList()
+                }).ToList(),
+                TotalPages = totalPages,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            });
+        }
 
-        //        return Ok(new
-        //        {
-        //            Message = "Orders retrieved successfully.",
-        //            Products = productDTOs,
-        //            ErrorMessage = string.Empty
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new
-        //        {
-        //            Message = "An error occurred while retrieving the products.",
-        //            ErrorMessage = ex.Message
-        //        });
-        //    }
-        //}
+
 
 
         //[HttpGet]

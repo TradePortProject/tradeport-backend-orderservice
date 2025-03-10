@@ -15,6 +15,10 @@ namespace OrderManagement.Repositories
         Task<IEnumerable<OrderDetails>> GetOrderDetailsByOrderIdAsync(Guid orderId); 
 
         Task<List<Order>> GetOrderByOrderIdAsync(Guid manufacturerID);
+        Task<(IEnumerable<Order>, int)> GetFilteredOrdersAsync(
+        Guid? orderId, Guid? retailerId, Guid? deliveryPersonnelId,
+        int? orderStatus, Guid? manufacturerId, int? orderItemStatus,
+        int pageNumber, int pageSize);
 
     }
 }
