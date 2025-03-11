@@ -32,15 +32,6 @@ namespace OrderManagement.Models
         [Column(TypeName = "decimal(10,2)")]
         public decimal ProductPrice { get; set; }
 
-        [Required]
-        public DateTime CreatedOn { get; set; } = DateTime.UtcNow; // Ensure a valid default
-
-        public Guid CreatedBy { get; set; }
-
-        public DateTime? UpdatedOn { get; set; } = null; 
-
-        public Guid? UpdatedBy { get; set; }
-
     }
 }
 
