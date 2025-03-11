@@ -12,9 +12,28 @@ namespace OrderManagement.Mappings
         public OrderAutoMapperProfiles()
         {
             CreateMap<Order, CreateOrderDTO>();
-            CreateMap<CreateOrderDTO, Order>();
             CreateMap<OrderDetails, CreateOrderDetailsDTO>();
-            CreateMap<CreateOrderDetailsDTO, OrderDetails>();
+
+            // Mapping from CreateOrderDTO to Order entity
+            CreateMap<CreateOrderDTO, Order>()
+                .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Save)) // Set default status
+                .ForMember(dest => dest.PaymentMode, opt => opt.MapFrom(_ => (int)PaymentMode.Cash)) // Set default payment mode
+                .ForMember(dest => dest.CreatedOn, opt => opt.MapFrom(_ => DateTime.UtcNow)) // Set CreatedOn time
+                .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true)) // Ensure IsActive is set
+                .ForMember(dest => dest.OrderDetails, opt => opt.MapFrom(src => src.OrderDetails)) //Set Order Details
+                .ForMember(dest => dest.OrderDetails, opt => opt.MapFrom((src, dest, destMember, context) =>
+                                     src.OrderDetails.Select(detail =>
+                                     {
+                                         var mappedDetail = context.Mapper.Map<OrderDetails>(detail);
+                                         mappedDetail.CreatedBy = src.CreatedBy; // ✅ Set CreatedBy from Order
+                                         return mappedDetail;
+                                     }).ToList()));
+
+            // Mapping from CreateOrderDetailsDTO to OrderDetails entity
+            CreateMap<CreateOrderDetailsDTO, OrderDetails>()
+                .ForMember(dest => dest.OrderItemStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Save)) // Set default status
+                .ForMember(dest => dest.CreatedOn, opt => opt.MapFrom(_ => DateTime.UtcNow)) // Set CreatedOn
+                .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true)); // Set IsActive
 
             CreateMap<Order, OrderDto>();
             CreateMap<OrderDetails, OrderDetailsDto>();

@@ -141,36 +141,8 @@ namespace OrderManagement.Controllers
 
                 // Map the incoming CreateProductDTO to a Product entity.
                 var orderModel = _mapper.Map<CreateOrderDTO, Order>(orderRequestDto);
-                orderModel.OrderStatus = (int)OrderStatus.Save;
-                orderModel.DeliveryPersonnelID = null;
-                orderModel.PaymentMode = (int)PaymentMode.Cash;
                 orderModel.TotalPrice = totalPrice;
-                //orderModel.ShippingCost = shippingCost;
-                orderModel.CreatedOn = DateTime.UtcNow;
-                orderModel.IsActive = true;
-
-                // Use Repository to create Product
                 orderModel = await orderRepository.CreateOrderAsync(orderModel);
-
-                //Loop through the list of OrderDetails from the request
-                foreach (var detailDto in orderRequestDto.OrderDetails)
-                {
-                    // Map CreateOrderDetailRequestDto to OrderDetail
-                    var orderDetail = _mapper.Map<OrderDetails>(detailDto);
-
-                    // Set the OrderID and other fields for the OrderDetail
-                    orderDetail.OrderID = orderModel.OrderID;
-                    orderDetail.Quantity = orderDetail.Quantity;
-                    orderDetail.ProductPrice = orderDetail.ProductPrice;
-                    orderDetail.ManufacturerID = orderDetail.ManufacturerID;
-                    orderDetail.CreatedBy = orderModel.CreatedBy;
-                    orderDetail.OrderItemStatus = (int)OrderStatus.Save;
-                    orderDetail.CreatedOn = DateTime.UtcNow;
-                    orderDetail.IsActive = true;
-
-                    // Save each OrderDetail one by one to the database
-                    await orderDetailsRepository.CreateOrderDetailsAsync(orderDetail);              
-                }
 
                 var response = new
                 {
