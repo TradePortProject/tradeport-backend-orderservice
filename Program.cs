@@ -66,19 +66,19 @@ builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 var app = builder.Build();
 
 //Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseDeveloperExceptionPage();
+//    app.UseSwagger();
+//    app.UseSwaggerUI();
+//}
 
 // Enable Swagger for all environments
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Management API v1");
-    c.RoutePrefix = "swagger"; // Access at http://localhost:3016/swagger
+    c.RoutePrefix = "swagger"; // Access at http://localhost:3017/swagger
 });
 
 app.UseHttpsRedirection();
