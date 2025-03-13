@@ -9,6 +9,8 @@ using OrderManagement.Repositories;
 using AutoMapper;
 using OrderManagement.Common;
 using OrderManagement.ExternalServices;
+using System.Linq;
+using System.Collections.Generic;
 
 
 namespace OrderManagement.Controllers
@@ -144,6 +146,12 @@ namespace OrderManagement.Controllers
                 orderModel.TotalPrice = totalPrice;
                 orderModel = await orderRepository.CreateOrderAsync(orderModel);
 
+                var cartIDs = orderRequestDto.OrderDetails.Select(detail => detail.CartID).ToList();
+                foreach (var cartID in cartIDs)
+                {
+                    await DeactivateShoppingCartItemById(cartID);
+                }
+
                 var response = new
                 {
                     Message = "Order created successfully.",
@@ -194,7 +202,7 @@ namespace OrderManagement.Controllers
                     Message = "Item added to the cart successfully.",
                     ErrorMessage = ""
                 };
-                return Ok(new {cartID = orderModel.CartID, response });
+                return Ok(new { cartID = orderModel.CartID, response });
             }
 
             catch (Exception ex)
@@ -211,16 +219,29 @@ namespace OrderManagement.Controllers
         }
 
 
-        private async Task<bool> SetStockStatus(Guid productId, int quantity)
-        {
-            var product = await GetProductByProductID(productId);
-            return product != null && product.Quantity >= quantity;
-        }
 
         private async Task<string> SetProductImagePath(Guid productID)
         {
             var product = await GetProductByProductID(productID);
             return string.Empty;
+        }
+
+
+        private async Task<bool> DeactivateShoppingCartItemById(Guid cartID)
+        {
+            bool result = false;
+
+            var existingOrder = await shoppingCartRepository.GetShoppingCartItemByCartID(cartID);
+            if (existingOrder == null)
+            {
+                throw new Exception($"There is no shopping cart item with cart ID: {cartID}");
+            }
+            existingOrder.IsActive = false;
+            existingOrder.UpdatedOn = DateTime.UtcNow;
+            existingOrder.UpdatedBy = Guid.Empty;
+            result = await shoppingCartRepository.UpdateShoppingCartItemByCartIdAsync(existingOrder);
+
+            return result;
         }
 
 
@@ -255,34 +276,41 @@ namespace OrderManagement.Controllers
                 {
                     return StatusCode(404, new
                     {
-                        Message = "No order items found for the provided Retailer.",
+                        Message = "No order items found for the provided Retailer." + retailerID,
                         ErrorMessage = ""
                     });
                 }
 
-
                 // Map entities to DTOs
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
+                var cartDetails = new List<object>();
 
-                return Ok(new
+                foreach (var order in shoppingCartDTO)
                 {
+                    var product = await GetProductByProductID(order.ProductID);
 
-                    Message = "Order Items fetched successfully.",
-                    ErrorMessage = string.Empty,
-                    NumberOfOrderItems = shoppingCartDTO.Count,
-                    CartDetails = shoppingCartDTO.Select(order => new
+                    cartDetails.Add(new
                     {
                         retailerID = order.RetailerID,
                         productId = order.ProductID,
+                        productName = product != null ? product.ProductName : string.Empty,
                         productPrice = order.ProductPrice,
                         orderQuantity = order.OrderQuantity,
                         TotalPrice = order.OrderQuantity * order.ProductPrice,
-                        IsOutOfStock = false,
-                        ProductImagePath = string.Empty
-                        //IsOutOfStock = SetStockStatus(order.ProductID,order.OrderQuantity),
-                        //ProductImagePath = SetProductImagePath(order.ProductID)
+                        IsOutOfStock = product != null ? product.Quantity < order.OrderQuantity : false,
+                        //ProductImagePath = await SetProductImagePath(order.ProductID),
+                        ProductImagePath =string.Empty,
+                        ManufacturerID = product != null ? product.ManufacturerID : Guid.Empty,
+                        cartID = order.CartID
+                    });
+                }
 
-                    }).ToList()
+                return Ok(new
+                {
+                    Message = "Order Items fetched successfully.",
+                    ErrorMessage = string.Empty,
+                    NumberOfOrderItems = cartDetails.Count,
+                    CartDetails = cartDetails
                 });
             }
             catch (Exception ex)
@@ -295,6 +323,44 @@ namespace OrderManagement.Controllers
             }
         }
 
+
+        [HttpPut("DeleteCartItemByID")]
+        public async Task<IActionResult> DeleteShoppingCartItemByCardID(Guid cartID)
+        {
+            if (cartID == Guid.Empty)
+            {
+                return BadRequest(new { Message = "", ErrorMessage = "Invalid Cart ID." });
+            }
+
+            try
+            {
+                bool result = await DeactivateShoppingCartItemById(cartID);
+
+                if (!result)
+                {
+                    return StatusCode(500, new { Message = "Failed to remove item from the cart.", ErrorMessage = "Internal server error." });
+                }
+
+                return Ok(new
+                {
+                    Message = "Item removed from the cart successfully.",
+                    ErrorMessage = string.Empty
+                });
+
+                //return Ok(new { Message = "Order updated successfully.", OrderID = updatedOrder.OrderID });
+            }
+            catch (Exception ex)
+            {
+                var response = new
+                {
+                    Message = "An error occurred while removing item from the cart.",
+                    ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
+                };
+
+                return StatusCode(500, response);
+
+            }
+        }
 
         [HttpPut("UpdateOrder")]
         public async Task<IActionResult> UpdateOrder([FromBody] UpdateOrderDTO updateOrderDto)

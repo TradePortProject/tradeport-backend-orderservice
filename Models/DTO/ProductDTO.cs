@@ -12,6 +12,12 @@ namespace OrderManagement.Models.DTO
         [JsonPropertyName("quantity")]
         public int? Quantity { get; set; }
 
+        [JsonPropertyName("productName")]
+        public string? ProductName { get; set; }
+
+        [JsonPropertyName("manufacturerID")]
+        public Guid ManufacturerID { get; set; }
+        
     }
 
     public class ProductApiResponse

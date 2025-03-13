@@ -19,8 +19,17 @@ namespace OrderManagement.Repositories
         public async Task<Order> CreateOrderAsync(Order order)
         {
             await dbContext.Order.AddAsync(order);
-            await dbContext.SaveChangesAsync();
-            return order;
+            int result = await dbContext.SaveChangesAsync();
+            if (result > 0)
+            {
+                // Changes were successfully saved
+                return order;
+            }
+            else
+            {
+                // Handle the case where no changes were saved
+                throw new Exception("Failed to save order to the database.");
+            }
         }
 
         public async Task<Order?> GetOrderByIdAsync(Guid orderId)
@@ -58,8 +67,8 @@ namespace OrderManagement.Repositories
             //Need to updated the query to get the order details by manufacturerID
             return await FindByCondition(order => order.RetailerID == manufacturerID).ToListAsync();
         }
-        
-            public async Task<List<Order>> GetOrderByOrderIdAsync(Guid orderId)
+
+        public async Task<List<Order>> GetOrderByOrderIdAsync(Guid orderId)
         {
             return await FindByCondition(order => order.OrderID == orderId).ToListAsync();
         }
