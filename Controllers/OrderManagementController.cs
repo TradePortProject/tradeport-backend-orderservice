@@ -60,6 +60,7 @@ namespace OrderManagement.Controllers
                 {
                     OrderID = order.OrderID,
                     RetailerID = order.RetailerID,
+                    RetailerName = order.RetailerName,
                     DeliveryPersonnelID = order.DeliveryPersonnelID,
                     OrderStatus = order.OrderStatus,
                     TotalPrice = order.TotalPrice,

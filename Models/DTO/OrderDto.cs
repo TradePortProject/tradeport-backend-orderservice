@@ -4,6 +4,7 @@
     {
         public Guid OrderID { get; set; }
         public Guid RetailerID { get; set; }
+        public string RetailerName { get; set; } //Include Retailer Name
         public Guid? DeliveryPersonnelID { get; set; }
         public int OrderStatus { get; set; }
         public decimal TotalPrice { get; set; }

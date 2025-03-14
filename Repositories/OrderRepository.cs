@@ -121,11 +121,18 @@ namespace OrderManagement.Repositories
                 .Where(u => manufacturerIds.Contains(u.UserID))
                 .ToDictionaryAsync(u => u.UserID, u => u.UserName);
 
+            // ✅ Fetch Retailer Names from Users Table
+            var retailerIds = paginatedOrders.Select(od => od.RetailerID).Distinct();
+            var retailers = await dbContext.Users
+                .Where(u => retailerIds.Contains(u.UserID))
+                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
+
             // ✅ Convert Orders to DTO
             var orderDtos = paginatedOrders.Select(order => new OrderDto
             {
                 OrderID = order.OrderID,
                 RetailerID = order.RetailerID,
+                RetailerName = retailers.ContainsKey(order.RetailerID) ? retailers[order.RetailerID] : "Unknown Retailer",
                 DeliveryPersonnelID = order.DeliveryPersonnelID,
                 OrderStatus = order.OrderStatus,
                 TotalPrice = order.TotalPrice,
