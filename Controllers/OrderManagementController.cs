@@ -72,7 +72,9 @@ namespace OrderManagement.Controllers
                     {
                         OrderDetailID = detail.OrderDetailID,
                         ProductID = detail.ProductID,
+                        ProductName = detail.ProductName,
                         ManufacturerID = detail.ManufacturerID,
+                        ManufacturerName = detail.ManufacturerName,
                         Quantity = detail.Quantity,
                         OrderItemStatus = detail.OrderItemStatus,
                         ProductPrice = detail.ProductPrice

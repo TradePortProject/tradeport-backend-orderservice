@@ -36,7 +36,9 @@ namespace OrderManagement.Mappings
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true)); // Set IsActive
 
             CreateMap<Order, OrderDto>();
-            CreateMap<OrderDetails, OrderDetailsDto>();
+            CreateMap<OrderDetails, OrderDetailsDto>()
+                .ForMember(dest => dest.ProductName, opt => opt.Ignore()) //Ignore because it’s computed
+                .ForMember(dest => dest.ManufacturerName, opt => opt.Ignore()); //Ignore because it’s computed
 
             CreateMap<Order, GetOrderDTO>();
 

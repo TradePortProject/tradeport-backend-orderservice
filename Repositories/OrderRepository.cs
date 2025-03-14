@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using OrderManagement.Data;
 using OrderManagement.Models;
+using OrderManagement.Models.DTO;
 using Xunit.Abstractions;
 
 
@@ -73,7 +74,7 @@ namespace OrderManagement.Repositories
             return await FindByCondition(order => order.OrderID == orderId).ToListAsync();
         }
 
-        public async Task<(IEnumerable<Order>, int)> GetFilteredOrdersAsync(
+        public async Task<(IEnumerable<OrderDto>, int)> GetFilteredOrdersAsync(
         Guid? orderId, Guid? retailerId, Guid? deliveryPersonnelId,
         int? orderStatus, Guid? manufacturerId, int? orderItemStatus,
         int pageNumber, int pageSize)
@@ -108,7 +109,47 @@ namespace OrderManagement.Repositories
                 .Take(pageSize)
                 .ToListAsync();
 
-            return (paginatedOrders, totalPages);
+            // ✅ Fetch Product Names from Products Table
+            var productIds = paginatedOrders.SelectMany(o => o.OrderDetails).Select(od => od.ProductID).Distinct();
+            var products = await dbContext.Products
+                .Where(p => productIds.Contains(p.ProductID))
+                .ToDictionaryAsync(p => p.ProductID, p => p.ProductName);
+
+            // ✅ Fetch Manufacturer Names from Users Table
+            var manufacturerIds = paginatedOrders.SelectMany(o => o.OrderDetails).Select(od => od.ManufacturerID).Distinct();
+            var manufacturers = await dbContext.Users
+                .Where(u => manufacturerIds.Contains(u.UserID))
+                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
+
+            // ✅ Convert Orders to DTO
+            var orderDtos = paginatedOrders.Select(order => new OrderDto
+            {
+                OrderID = order.OrderID,
+                RetailerID = order.RetailerID,
+                DeliveryPersonnelID = order.DeliveryPersonnelID,
+                OrderStatus = order.OrderStatus,
+                TotalPrice = order.TotalPrice,
+                PaymentMode = order.PaymentMode,
+                PaymentCurrency = order.PaymentCurrency,
+                ShippingCost = order.ShippingCost,
+                ShippingCurrency = order.ShippingCurrency,
+                ShippingAddress = order.ShippingAddress,
+
+                // ✅ Convert OrderDetails to DTO and Assign Product/Manufacturer Names
+                OrderDetails = order.OrderDetails.Select(detail => new OrderDetailsDto
+                {
+                    OrderDetailID = detail.OrderDetailID,
+                    ProductID = detail.ProductID,
+                    ProductName = products.ContainsKey(detail.ProductID) ? products[detail.ProductID] : "Unknown Product", // ✅ Assign here
+                    ManufacturerID = detail.ManufacturerID,
+                    ManufacturerName = manufacturers.ContainsKey(detail.ManufacturerID) ? manufacturers[detail.ManufacturerID] : "Unknown Manufacturer", // ✅ Assign here
+                    Quantity = detail.Quantity,
+                    OrderItemStatus = detail.OrderItemStatus,
+                    ProductPrice = detail.ProductPrice
+                }).ToList()
+            }).ToList();
+
+            return (orderDtos, totalPages);
         }
 
 

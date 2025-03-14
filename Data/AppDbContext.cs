@@ -10,11 +10,11 @@ namespace OrderManagement.Data
         public AppDbContext(DbContextOptions options) : base(options) { }
 
         // Define your DbSets here
-        public DbSet<Order> Order { get; set; }  // This is the DbSet for the Product entity
-
-        // Define your DbSets here
-        public DbSet<OrderDetails> OrderDetails { get; set; }  // This is the DbSet for the Product entity
+        public DbSet<Order> Order { get; set; }  
+        public DbSet<OrderDetails> OrderDetails { get; set; }  
         public DbSet<ShoppingCart> ShoppingCart { get; set; }
+        public DbSet<User> Users { get; set; }  // ✅ Added Users table
+        public DbSet<Product> Products { get; set; } // ✅ Added Products table
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Order>()
@@ -23,6 +23,9 @@ namespace OrderManagement.Data
                .ToTable("OrderDetails");
             modelBuilder.Entity<ShoppingCart>()
               .ToTable("ShoppingCart");
+            modelBuilder.Entity<User>().ToTable("Users"); //Map Users Table
+            modelBuilder.Entity<Product>().ToTable("Products"); //Map Products Table
+
             //modelBuilder.Entity<Order>()
             //    .Property(b => b.CreatedOn)
             //    .HasDefaultValueSql("getdate()");
