@@ -63,6 +63,21 @@ namespace OrderManagement.Repositories
             await dbContext.SaveChangesAsync();
             return existingOrder;
         }
+
+        public async Task<Order?> UpdateOrderStatusAsync(Guid orderId, int newStatus)
+        {
+            var order = await dbContext.Order.FindAsync(orderId);
+            if (order == null)
+            {
+                return null;
+            }
+
+            order.OrderStatus = newStatus;
+            order.UpdatedOn = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync();
+            return order;
+        }
+
         public async Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID)
         {
             //Need to updated the query to get the order details by manufacturerID

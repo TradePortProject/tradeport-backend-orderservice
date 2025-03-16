@@ -3,7 +3,12 @@
     public class AcceptOrderDTO
     {
         public Guid OrderID { get; set; }
-        public string OrderStatus { get; set; } // Accepts status as string
-        public string DeliveryPersonnelID { get; set; } // Can be empty or null
+        public List<AcceptOrderItemDTO> OrderItems { get; set; } // ✅ Accept items at item level
+    }
+
+    public class AcceptOrderItemDTO
+    {
+        public Guid OrderDetailID { get; set; }
+        public bool IsAccepted { get; set; } // ✅ True = Accepted, False = Rejected
     }
 }

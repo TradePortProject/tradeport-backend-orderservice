@@ -415,12 +415,78 @@ namespace OrderManagement.Controllers
             }
         }
 
-        [HttpPut("AcceptOrder")]
-        public async Task<IActionResult> AcceptOrder([FromBody] AcceptOrderDTO acceptOrderDto, [FromServices] IProductServiceClient productServiceClient)
+        //[HttpPut("AcceptOrder")]
+        //public async Task<IActionResult> AcceptOrder([FromBody] AcceptOrderDTO acceptOrderDto, [FromServices] IProductServiceClient productServiceClient)
+        //{
+        //    if (acceptOrderDto == null || acceptOrderDto.OrderID == Guid.Empty || string.IsNullOrEmpty(acceptOrderDto.OrderStatus))
+        //    {
+        //        return BadRequest(new { Message = "Invalid request.", ErrorMessage = "OrderID and OrderStatus are required." });
+        //    }
+
+        //    try
+        //    {
+        //        var existingOrder = await orderRepository.GetOrderByIdAsync(acceptOrderDto.OrderID);
+        //        if (existingOrder == null)
+        //        {
+        //            return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
+        //        }
+
+        //        if (existingOrder.OrderStatus != (int)OrderStatus.Accepted)
+        //        {
+        //            return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
+        //        }
+
+        //        _mapper.Map(acceptOrderDto, existingOrder);
+
+        //        var orderDetails = await orderRepository.GetOrderDetailsByOrderIdAsync(acceptOrderDto.OrderID);
+        //        if (orderDetails == null || !orderDetails.Any())
+        //        {
+        //            return BadRequest(new { Message = "No order details found.", ErrorMessage = "Cannot process order without items." });
+        //        }
+
+        //        foreach (var item in orderDetails)
+        //        {
+        //            var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
+
+        //            if (product == null)
+        //            {
+        //                return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {item.ProductID} does not exist." });
+        //            }
+
+        //            if (product.Quantity == null || product.Quantity < item.Quantity)
+        //            {
+        //                return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
+        //            }
+
+        //            int updatedQuantity = (product.Quantity ?? 0) - item.Quantity;
+        //            bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(item.ProductID, updatedQuantity);
+
+        //            if (!productUpdated)
+        //            {
+        //                return StatusCode(500, new { Message = "Failed to update product quantity.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
+        //            }
+        //        }
+
+        //        var updatedOrder = await orderRepository.UpdateOrderAsync(existingOrder);
+        //        if (updatedOrder == null)
+        //        {
+        //            return StatusCode(500, new { Message = "Failed to update order.", ErrorMessage = "Internal server error." });
+        //        }
+
+        //        return Ok(new { Message = "Order accepted successfully.", OrderID = updatedOrder.OrderID });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
+        //    }
+        //}
+
+        [HttpPut("AcceptRejectOrder")]
+        public async Task<IActionResult> AcceptRejectOrder([FromBody] AcceptOrderDTO acceptOrderDto)
         {
-            if (acceptOrderDto == null || acceptOrderDto.OrderID == Guid.Empty || string.IsNullOrEmpty(acceptOrderDto.OrderStatus))
+            if (acceptOrderDto == null || acceptOrderDto.OrderID == Guid.Empty || acceptOrderDto.OrderItems == null || !acceptOrderDto.OrderItems.Any())
             {
-                return BadRequest(new { Message = "Invalid request.", ErrorMessage = "OrderID and OrderStatus are required." });
+                return BadRequest(new { Message = "Invalid request.", ErrorMessage = "OrderID and OrderItems are required." });
             }
 
             try
@@ -431,55 +497,98 @@ namespace OrderManagement.Controllers
                     return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
                 }
 
-                if (existingOrder.OrderStatus != (int)OrderStatus.Accepted)
-                {
-                    return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
-                }
-
-                _mapper.Map(acceptOrderDto, existingOrder);
-
                 var orderDetails = await orderRepository.GetOrderDetailsByOrderIdAsync(acceptOrderDto.OrderID);
                 if (orderDetails == null || !orderDetails.Any())
                 {
                     return BadRequest(new { Message = "No order details found.", ErrorMessage = "Cannot process order without items." });
                 }
 
-                foreach (var item in orderDetails)
-                {
-                    var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
+                // Retrieve previously accepted items from the database
+                var previouslyAcceptedItems = orderDetails
+                    .Where(od => od.OrderItemStatus == (int)OrderStatus.Accepted)
+                    .ToList();
 
+                bool isAnyRejected = false;
+                bool isAllAccepted = true;
+                List<OrderDetails> newlyAcceptedItems = new List<OrderDetails>(); // Track newly accepted items
+                List<OrderDetails> newlyRejectedItems = new List<OrderDetails>(); // Track newly rejected items
+
+                foreach (var itemDto in acceptOrderDto.OrderItems)
+                {
+                    var orderItem = orderDetails.FirstOrDefault(od => od.OrderDetailID == itemDto.OrderDetailID);
+                    if (orderItem == null)
+                    {
+                        return BadRequest(new { Message = "Order item not found.", ErrorMessage = $"OrderDetailID {itemDto.OrderDetailID} does not exist." });
+                    }
+
+                    var product = await productServiceClient.GetProductByIdAsync(orderItem.ProductID);
                     if (product == null)
                     {
-                        return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {item.ProductID} does not exist." });
+                        return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {orderItem.ProductID} does not exist." });
                     }
 
-                    if (product.Quantity == null || product.Quantity < item.Quantity)
+                    if (itemDto.IsAccepted)
                     {
-                        return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
+                        // Accepting the order item
+                        orderItem.OrderItemStatus = (int)OrderStatus.Accepted;
+                        newlyAcceptedItems.Add(orderItem);
+
+                        // Reduce quantity from Product Table
+                        if (product.Quantity < orderItem.Quantity)
+                        {
+                            return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
+                        }
+                        int updatedQuantity = product.Quantity.GetValueOrDefault() - orderItem.Quantity;
+                        bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(orderItem.ProductID, updatedQuantity);
+
+                        if (!productUpdated)
+                        {
+                            return StatusCode(500, new { Message = "Failed to update product quantity.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
+                        }
                     }
-
-                    int updatedQuantity = (product.Quantity ?? 0) - item.Quantity;
-                    bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(item.ProductID, updatedQuantity);
-
-                    if (!productUpdated)
+                    else
                     {
-                        return StatusCode(500, new { Message = "Failed to update product quantity.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
+                        // Rejecting the order item
+                        orderItem.OrderItemStatus = (int)OrderStatus.Rejected;
+                        newlyRejectedItems.Add(orderItem);
+                        isAnyRejected = true;
+                        isAllAccepted = false;
                     }
+
+                    // ✅ Use `UpdateOrderItemStatusAsync` instead of `UpdateAsync`
+                    await orderDetailsRepository.UpdateOrderItemStatusAsync(orderItem.OrderDetailID, orderItem.OrderItemStatus);
                 }
 
-                var updatedOrder = await orderRepository.UpdateOrderAsync(existingOrder);
-                if (updatedOrder == null)
+                // ✅ Update Order Status using `UpdateOrderStatusAsync`
+                if (isAnyRejected)
                 {
-                    return StatusCode(500, new { Message = "Failed to update order.", ErrorMessage = "Internal server error." });
+                    existingOrder = await orderRepository.UpdateOrderStatusAsync(existingOrder.OrderID, (int)OrderStatus.Rejected);
+
+                    // ✅ Restore quantity for ALL previously accepted items
+                    var allAcceptedItems = previouslyAcceptedItems.Concat(newlyAcceptedItems).ToList();
+                    foreach (var item in allAcceptedItems)
+                    {
+                        var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
+                        if (product != null)
+                        {
+                            int restoredQuantity = product.Quantity.GetValueOrDefault() + item.Quantity;
+                            await productServiceClient.UpdateProductQuantityAsync(item.ProductID, restoredQuantity);
+                        }
+                    }
+                }
+                else if (isAllAccepted)
+                {
+                    existingOrder = await orderRepository.UpdateOrderStatusAsync(existingOrder.OrderID, (int)OrderStatus.Accepted);
                 }
 
-                return Ok(new { Message = "Order accepted successfully.", OrderID = updatedOrder.OrderID });
+                return Ok(new { Message = "Order status updated successfully.", OrderID = existingOrder.OrderID });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
+                return StatusCode(500, new { Message = "An error occurred while processing the order.", ErrorMessage = ex.Message });
             }
         }
+
         private async Task<ProductDTO> GetProductByProductID(Guid productID)
         {
             var product = await productServiceClient.GetProductByIdAsync(productID);

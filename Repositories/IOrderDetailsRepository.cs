@@ -9,6 +9,7 @@ namespace OrderManagement.Repositories
     public interface IOrderDetailsRepository : IRepositoryBase<OrderDetails>
     {
         Task<OrderDetails> CreateOrderDetailsAsync(OrderDetails orderDetails);
+        Task<OrderDetails?> UpdateOrderItemStatusAsync(Guid orderDetailId, int newStatus);
 
     }
 }
