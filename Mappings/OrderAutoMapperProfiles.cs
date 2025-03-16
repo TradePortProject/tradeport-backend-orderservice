@@ -16,7 +16,7 @@ namespace OrderManagement.Mappings
 
             // Mapping from CreateOrderDTO to Order entity
             CreateMap<CreateOrderDTO, Order>()
-                .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Save)) // Set default status
+                .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Submitted)) // Set default status
                 .ForMember(dest => dest.PaymentMode, opt => opt.MapFrom(_ => (int)PaymentMode.Cash)) // Set default payment mode
                 .ForMember(dest => dest.CreatedOn, opt => opt.MapFrom(_ => DateTime.UtcNow)) // Set CreatedOn time
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true)) // Ensure IsActive is set
@@ -31,15 +31,23 @@ namespace OrderManagement.Mappings
 
             // Mapping from CreateOrderDetailsDTO to OrderDetails entity
             CreateMap<CreateOrderDetailsDTO, OrderDetails>()
-                .ForMember(dest => dest.OrderItemStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Save)) // Set default status
+                .ForMember(dest => dest.OrderItemStatus, opt => opt.MapFrom(_ => (int)OrderStatus.Submitted)) // Set default status
                 .ForMember(dest => dest.CreatedOn, opt => opt.MapFrom(_ => DateTime.UtcNow)) // Set CreatedOn
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true)); // Set IsActive
 
             CreateMap<Order, OrderDto>()
-                .ForMember(dest => dest.RetailerName, opt => opt.Ignore()); //Ignore because it’s computed
+                .ForMember(dest => dest.OrderStatusValue,
+                    opt => opt.MapFrom(src => GetEnumDisplayName((OrderStatus)src.OrderStatus))) // ✅ Convert OrderStatus to string
+                .ForMember(dest => dest.PaymentModeValue,
+                    opt => opt.MapFrom(src => GetEnumDisplayName((PaymentMode)src.PaymentMode))) // ✅ Convert PaymentMode to string
+                .ForMember(dest => dest.RetailerName, opt => opt.Ignore());//Ignore because it’s computed
+
+
             CreateMap<OrderDetails, OrderDetailsDto>()
-                .ForMember(dest => dest.ProductName, opt => opt.Ignore()) //Ignore because it’s computed
-                .ForMember(dest => dest.ManufacturerName, opt => opt.Ignore()); //Ignore because it’s computed
+                .ForMember(dest => dest.OrderItemStatusValue,
+                    opt => opt.MapFrom(src => GetEnumDisplayName((OrderStatus)src.OrderItemStatus))) // ✅ Convert OrderItemStatus to string
+                .ForMember(dest => dest.ProductName, opt => opt.Ignore())//Ignore because it’s computed
+                .ForMember(dest => dest.ManufacturerName, opt => opt.Ignore());//Ignore because it’s computed
 
             CreateMap<Order, GetOrderDTO>();
 

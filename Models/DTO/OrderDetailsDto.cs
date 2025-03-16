@@ -1,4 +1,6 @@
-﻿namespace OrderManagement.Models.DTO
+﻿using OrderManagement.Common;
+
+namespace OrderManagement.Models.DTO
 {
     public class OrderDetailsDto
     {
@@ -9,6 +11,7 @@
         public string ManufacturerName { get; set; } //Include Manufacturer Name
         public int Quantity { get; set; }
         public int OrderItemStatus { get; set; }
+        public string OrderItemStatusValue => Enum.GetName(typeof(OrderStatus), OrderItemStatus); // ✅ Get Enum Name
         public decimal ProductPrice { get; set; }
     }
 }

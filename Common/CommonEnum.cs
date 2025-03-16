@@ -9,12 +9,16 @@ namespace OrderManagement.Common
         Save = 1,
         [Display(Name = "Submitted")]
         Submitted = 2,
+        [Display(Name = "Accepted")]
+        Accepted = 3,
+        [Display(Name = "Rejected")]
+        Rejected = 4,
         [Display(Name = "In Progress")]
-        InProgress = 2,
+        InProgress = 5,
         [Display(Name = "Shipped")]
-        Shipped = 3,
+        Shipped = 6,
         [Display(Name = "Delivered")]
-        Delivered = 4,       
+        Delivered = 7,       
     }
 
     public enum PaymentMode

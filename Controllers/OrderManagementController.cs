@@ -62,9 +62,9 @@ namespace OrderManagement.Controllers
                     RetailerID = order.RetailerID,
                     RetailerName = order.RetailerName,
                     DeliveryPersonnelID = order.DeliveryPersonnelID,
-                    OrderStatus = order.OrderStatus,
+                    OrderStatus = order.OrderStatusValue,
                     TotalPrice = order.TotalPrice,
-                    PaymentMode = order.PaymentMode,
+                    PaymentMode = order.PaymentModeValue,
                     PaymentCurrency = order.PaymentCurrency,
                     ShippingCost = order.ShippingCost,
                     ShippingCurrency = order.ShippingCurrency,
@@ -77,7 +77,7 @@ namespace OrderManagement.Controllers
                         ManufacturerID = detail.ManufacturerID,
                         ManufacturerName = detail.ManufacturerName,
                         Quantity = detail.Quantity,
-                        OrderItemStatus = detail.OrderItemStatus,
+                        OrderItemStatus = detail.OrderItemStatusValue,
                         ProductPrice = detail.ProductPrice
                     }).ToList()
                 }).ToList(),
@@ -431,7 +431,7 @@ namespace OrderManagement.Controllers
                     return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
                 }
 
-                if (existingOrder.OrderStatus != (int)OrderStatus.Submitted)
+                if (existingOrder.OrderStatus != (int)OrderStatus.Accepted)
                 {
                     return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
                 }
