@@ -19,7 +19,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 //builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+   // options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 //var connectionString = Environment.GetEnvironmentVariable("DEFAULT_CONNECTION") ??
                        //builder.Configuration.GetConnectionString("DefaultConnection");
@@ -40,6 +40,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Configure CORS
 builder.Services.AddCors(options =>

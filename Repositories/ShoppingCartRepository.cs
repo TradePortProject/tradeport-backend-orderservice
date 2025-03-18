@@ -20,10 +20,9 @@ namespace OrderManagement.Repositories
             return await FindByCondition(order => order.RetailerID == retailerID && order.IsActive && order.Status == status).ToListAsync();
         }
 
-        public async Task<ShoppingCart> GetShoppingCartItemByCartID(Guid cartID)
+        public async Task<ShoppingCart?> GetShoppingCartItemByCartID(Guid cartID)
         {
-            return await FindByCondition(shoppingCart => shoppingCart.CartID == cartID).FirstAsync();
-
+            return await FindByCondition(shoppingCart => shoppingCart.CartID == cartID).FirstOrDefaultAsync();
         }
 
         public async Task<bool> UpdateShoppingCartItemByCartIdAsync(ShoppingCart updatedItem)
