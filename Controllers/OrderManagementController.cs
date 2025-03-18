@@ -40,15 +40,18 @@ namespace OrderManagement.Controllers
         public async Task<IActionResult> GetOrdersAndOrderDetails(
         [FromQuery] Guid? orderId,
         [FromQuery] Guid? retailerId,
+        [FromQuery] string? retailerName,
+        [FromQuery] Guid? manufacturerId,
+        [FromQuery] string? manufacturerName,
+        [FromQuery] string? productName,
         [FromQuery] Guid? deliveryPersonnelId,
         [FromQuery] int? orderStatus,
-        [FromQuery] Guid? manufacturerId,
         [FromQuery] int? orderItemStatus,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
         {
             var (orders, totalPages) = await orderRepository.GetFilteredOrdersAsync(
-                orderId, retailerId, deliveryPersonnelId, orderStatus, manufacturerId, orderItemStatus, pageNumber, pageSize);
+                orderId, retailerId, deliveryPersonnelId, orderStatus, manufacturerId, orderItemStatus, retailerName, manufacturerName, productName, pageNumber, pageSize);
 
             var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
 

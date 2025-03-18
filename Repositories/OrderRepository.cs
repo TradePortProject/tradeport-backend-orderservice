@@ -92,10 +92,11 @@ namespace OrderManagement.Repositories
         public async Task<(IEnumerable<OrderDto>, int)> GetFilteredOrdersAsync(
         Guid? orderId, Guid? retailerId, Guid? deliveryPersonnelId,
         int? orderStatus, Guid? manufacturerId, int? orderItemStatus,
+        string? retailerName, string? manufacturerName, string? productName, // ✅ New Filters
         int pageNumber, int pageSize)
         {
             var query = dbContext.Order
-                .Include(o => o.OrderDetails) //Ensure OrderDetails are included
+                .Include(o => o.OrderDetails)
                 .AsQueryable();
 
             if (orderId.HasValue)
@@ -116,6 +117,54 @@ namespace OrderManagement.Repositories
             if (orderItemStatus.HasValue)
                 query = query.Where(o => o.OrderDetails.Any(od => od.OrderItemStatus == orderItemStatus.Value));
 
+            // ✅ Fetch Product Names from Products Table
+            var productIds = query.SelectMany(o => o.OrderDetails).Select(od => od.ProductID).Distinct();
+            var products = await dbContext.Products
+                .Where(p => productIds.Contains(p.ProductID))
+                .ToDictionaryAsync(p => p.ProductID, p => p.ProductName);
+
+            // ✅ Fetch Manufacturer Names from Users Table
+            var manufacturerIds = query.SelectMany(o => o.OrderDetails).Select(od => od.ManufacturerID).Distinct();
+            var manufacturers = await dbContext.Users
+                .Where(u => manufacturerIds.Contains(u.UserID))
+                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
+
+            // ✅ Fetch Retailer Names from Users Table
+            var retailerIds = query.Select(o => o.RetailerID).Distinct();
+            var retailers = await dbContext.Users
+                .Where(u => retailerIds.Contains(u.UserID))
+                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
+
+            // ✅ Apply Filters for Retailer Name
+            if (!string.IsNullOrEmpty(retailerName))
+            {
+                var filteredRetailerIds = retailers
+                    .Where(r => r.Value.Contains(retailerName, StringComparison.OrdinalIgnoreCase))
+                    .Select(r => r.Key)
+                    .ToList();
+                query = query.Where(o => filteredRetailerIds.Contains(o.RetailerID));
+            }
+
+            // ✅ Apply Filters for Manufacturer Name
+            if (!string.IsNullOrEmpty(manufacturerName))
+            {
+                var filteredManufacturerIds = manufacturers
+                    .Where(m => m.Value.Contains(manufacturerName, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Key)
+                    .ToList();
+                query = query.Where(o => o.OrderDetails.Any(od => filteredManufacturerIds.Contains(od.ManufacturerID)));
+            }
+
+            // ✅ Apply Filters for Product Name
+            if (!string.IsNullOrEmpty(productName))
+            {
+                var filteredProductIds = products
+                    .Where(p => p.Value.Contains(productName, StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Key)
+                    .ToList();
+                query = query.Where(o => o.OrderDetails.Any(od => filteredProductIds.Contains(od.ProductID)));
+            }
+
             int totalRecords = await query.CountAsync();
             int totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
 
@@ -123,24 +172,6 @@ namespace OrderManagement.Repositories
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
-
-            // ✅ Fetch Product Names from Products Table
-            var productIds = paginatedOrders.SelectMany(o => o.OrderDetails).Select(od => od.ProductID).Distinct();
-            var products = await dbContext.Products
-                .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID, p => p.ProductName);
-
-            // ✅ Fetch Manufacturer Names from Users Table
-            var manufacturerIds = paginatedOrders.SelectMany(o => o.OrderDetails).Select(od => od.ManufacturerID).Distinct();
-            var manufacturers = await dbContext.Users
-                .Where(u => manufacturerIds.Contains(u.UserID))
-                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
-
-            // ✅ Fetch Retailer Names from Users Table
-            var retailerIds = paginatedOrders.Select(od => od.RetailerID).Distinct();
-            var retailers = await dbContext.Users
-                .Where(u => retailerIds.Contains(u.UserID))
-                .ToDictionaryAsync(u => u.UserID, u => u.UserName);
 
             // ✅ Convert Orders to DTO
             var orderDtos = paginatedOrders.Select(order => new OrderDto
@@ -162,9 +193,9 @@ namespace OrderManagement.Repositories
                 {
                     OrderDetailID = detail.OrderDetailID,
                     ProductID = detail.ProductID,
-                    ProductName = products.ContainsKey(detail.ProductID) ? products[detail.ProductID] : "Unknown Product", // ✅ Assign here
+                    ProductName = products.ContainsKey(detail.ProductID) ? products[detail.ProductID] : "Unknown Product",
                     ManufacturerID = detail.ManufacturerID,
-                    ManufacturerName = manufacturers.ContainsKey(detail.ManufacturerID) ? manufacturers[detail.ManufacturerID] : "Unknown Manufacturer", // ✅ Assign here
+                    ManufacturerName = manufacturers.ContainsKey(detail.ManufacturerID) ? manufacturers[detail.ManufacturerID] : "Unknown Manufacturer",
                     Quantity = detail.Quantity,
                     OrderItemStatus = detail.OrderItemStatus,
                     ProductPrice = detail.ProductPrice

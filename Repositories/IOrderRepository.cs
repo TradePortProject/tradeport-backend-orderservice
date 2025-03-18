@@ -20,6 +20,7 @@ namespace OrderManagement.Repositories
         Task<(IEnumerable<OrderDto>, int)> GetFilteredOrdersAsync(
         Guid? orderId, Guid? retailerId, Guid? deliveryPersonnelId,
         int? orderStatus, Guid? manufacturerId, int? orderItemStatus,
+        string? retailerName, string? manufacturerName, string? productName,
         int pageNumber, int pageSize);
 
     }
