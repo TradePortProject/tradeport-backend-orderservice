@@ -40,7 +40,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
-
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 // Configure CORS
 builder.Services.AddCors(options =>
 {

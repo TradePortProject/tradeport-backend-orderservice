@@ -25,14 +25,16 @@ namespace OrderManagement.Controllers
         private readonly IOrderDetailsRepository orderDetailsRepository;
         private readonly IShoppingCartRepository shoppingCartRepository;
         private readonly IProductServiceClient productServiceClient;
+        private readonly IUserRepository userRepository;
         private readonly IMapper _mapper;
-        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient)
+        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient, IUserRepository userRepo)
         {
             this.dbContext = appDbContext;
             this.orderRepository = orderRepo;
             this.orderDetailsRepository = orderDetailsRepo;
             this.shoppingCartRepository = shoppingCartRepo;
             this.productServiceClient = productServiceClient;
+            this.userRepository = userRepo;
             _mapper = mapper;
         }
 
@@ -139,8 +141,15 @@ namespace OrderManagement.Controllers
 
             if (orderRequestDto == null || orderRequestDto.OrderDetails == null || orderRequestDto.OrderDetails.Count == 0)
             {
-                return BadRequest(new { Message = "Invalid order data.", ErrorMessage = "Order details are missing." });
+                return BadRequest(new { Message = "Invalid Order Data.", ErrorMessage = "Order details are missing." });
             }
+
+            var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { orderRequestDto.RetailerID });
+            if (retailer == null || !retailer.ContainsKey(orderRequestDto.RetailerID))
+            {
+                return BadRequest(new { Message = "Invalid Retailer ID.", ErrorMessage = "The provided Retailer ID does not exist." });
+            }
+
 
             try
             {
@@ -184,12 +193,17 @@ namespace OrderManagement.Controllers
 
             if (shoppingCartDto == null)
             {
-                return BadRequest(new { Message = "Invalid order data.", ErrorMessage = "Order details are missing." });
+                return BadRequest(new { Message = "Invalid Cart Item.", ErrorMessage = "Cart items are missing." });
+            }
+
+            var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { shoppingCartDto.RetailerID });
+            if (retailer == null || !retailer.ContainsKey(shoppingCartDto.RetailerID))
+            {
+                return BadRequest(new { Message = "Invalid Retailer ID.", ErrorMessage = "The provided Retailer ID does not exist." });
             }
 
             try
             {
-
                 var orderModel = _mapper.Map<CreateShoppingCartDTO, ShoppingCart>(shoppingCartDto);
                 orderModel.Status = (int)OrderStatus.Save;
                 orderModel.OrderQuantity = orderModel.OrderQuantity;
@@ -232,6 +246,10 @@ namespace OrderManagement.Controllers
             return string.Empty;
         }
 
+        private async Task<Dictionary<Guid, User>> GetUserInfoByRetailerIdAsync(List<Guid> retailerIDs)
+        {
+            return await userRepository.GetUserInfoByRetailerIdAsync(retailerIDs);
+        }
 
         private async Task<bool> DeactivateShoppingCartItemById(Guid cartID)
         {
@@ -269,7 +287,6 @@ namespace OrderManagement.Controllers
             return totalPrice;
         }
 
-        //GetOrders by RetailerId id 
         [HttpGet("GetShoppingCart/{retailerID}")]
         public async Task<IActionResult> GetShoppingCartByRetailerId(Guid retailerID)
         {
@@ -282,48 +299,54 @@ namespace OrderManagement.Controllers
                 {
                     return StatusCode(404, new
                     {
-                        Message = "No order items found for the provided Retailer." + retailerID,
+                        Message = "No cart items found for the provided Retailer." + retailerID,
                         ErrorMessage = ""
                     });
                 }
 
                 // Map entities to DTOs
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
-                var cartDetails = new List<object>();
 
-                foreach (var order in shoppingCartDTO)
+                // Get user information by retailer IDs
+                var retailerIDs = shoppingCart.Select(sc => sc.RetailerID).Distinct().ToList();
+
+
+                var retailers = await GetUserInfoByRetailerIdAsync(retailerIDs);
+
+                foreach (var cart in shoppingCartDTO)
                 {
-                    var product = await GetProductByProductID(order.ProductID);
 
-                    cartDetails.Add(new
+                    if (retailers.ContainsKey(cart.RetailerID))
                     {
-                        retailerID = order.RetailerID,
-                        productId = order.ProductID,
-                        productName = product != null ? product.ProductName : string.Empty,
-                        productPrice = order.ProductPrice,
-                        orderQuantity = order.OrderQuantity,
-                        TotalPrice = order.OrderQuantity * order.ProductPrice,
-                        IsOutOfStock = product != null ? product.Quantity < order.OrderQuantity : false,
-                        //ProductImagePath = await SetProductImagePath(order.ProductID),
-                        ProductImagePath =string.Empty,
-                        ManufacturerID = product != null ? product.ManufacturerID : Guid.Empty,
-                        cartID = order.CartID
-                    });
-                }
+                        var retailer = retailers[cart.RetailerID];
+                        cart.RetailerName = retailer.UserName;
+                        cart.PhoneNumber = retailer.PhoneNo;
+                        cart.Address = retailer.Address;
+                    }
 
+                    var product = await GetProductByProductID(cart.ProductID);
+                    cart.ProductName = product != null ? product.ProductName : string.Empty;
+                    cart.IsOutOfStock = product != null ? product.Quantity < cart.OrderQuantity : false;
+                    cart.ManufacturerID = product != null ? product.ManufacturerID : Guid.Empty;
+                    cart.ProductImagePath = string.Empty;
+                    cart.TotalPrice = cart.OrderQuantity * cart.ProductPrice;
+                    cart.OrderQuantity = cart.OrderQuantity;
+
+                }
                 return Ok(new
                 {
-                    Message = "Order Items fetched successfully.",
+                    Message = "Cart Items fetched successfully.",
                     ErrorMessage = string.Empty,
-                    NumberOfOrderItems = cartDetails.Count,
-                    CartDetails = cartDetails
+                    NumberOfOrderItems = shoppingCartDTO.Count,
+                    CartDetails = shoppingCartDTO
                 });
+
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new
                 {
-                    Message = "An error occurred while retrieving the order items for - " + retailerID,
+                    Message = "An error occurred while retrieving the cart items for - " + retailerID,
                     ErrorMessage = ex.Message
                 });
             }
