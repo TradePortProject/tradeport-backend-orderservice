@@ -23,7 +23,7 @@ namespace OrderManagement.ExternalServices
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_productServiceBaseUrl}/api/ProductManagement?id={productId}");
+                var response = await _httpClient.GetAsync($"{_productServiceBaseUrl}/api/ProductManagement/{productId}");
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"Failed to fetch product. Status Code: {response.StatusCode}");
