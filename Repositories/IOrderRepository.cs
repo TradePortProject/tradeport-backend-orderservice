@@ -13,7 +13,7 @@ namespace OrderManagement.Repositories
         Task<Order?> GetOrderByIdAsync(Guid orderId);
         Task<Order?> UpdateOrderAsync(Order order);
         Task<Order?> UpdateOrderStatusAsync(Guid orderId, int newStatus);
-        Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID);
+        //Task<List<Order>> GetOrderByManufacturerIdAsync(Guid manufacturerID);
         Task<IEnumerable<OrderDetails>> GetOrderDetailsByOrderIdAsync(Guid orderId); 
 
         Task<List<Order>> GetOrderByOrderIdAsync(Guid manufacturerID);

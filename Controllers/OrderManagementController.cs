@@ -11,6 +11,9 @@ using OrderManagement.Common;
 using OrderManagement.ExternalServices;
 using System.Linq;
 using System.Collections.Generic;
+using FluentAssertions;
+using Newtonsoft.Json;
+using Xunit;
 
 
 namespace OrderManagement.Controllers
@@ -52,10 +55,30 @@ namespace OrderManagement.Controllers
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
         {
+            Console.WriteLine("✅ [DEBUG] Entering GetOrdersAndOrderDetails...");
+
+            // Fetch orders
             var (orders, totalPages) = await orderRepository.GetFilteredOrdersAsync(
                 orderId, retailerId, deliveryPersonnelId, orderStatus, manufacturerId, orderItemStatus, retailerName, manufacturerName, productName, pageNumber, pageSize);
 
+            Console.WriteLine($"✅ [DEBUG] orders count: {orders?.Count() ?? 0}"); // Check if orders is null
+
             var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
+
+            // ❌ Check if orderDtos is NULL before calling Select()
+            if (orderDtos == null)
+            {
+                Console.WriteLine("❌ [ERROR] orderDtos is NULL! Returning empty result.");
+                return Ok(new
+                {
+                    Message = "Orders retrieved successfully.",
+                    ErrorMessage = string.Empty,
+                    Orders = new List<object>(), // ✅ Return an empty list instead of null
+                    TotalPages = totalPages,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                });
+            }
 
             return Ok(new
             {
@@ -92,100 +115,93 @@ namespace OrderManagement.Controllers
             });
         }
 
-
-
-
-        //[HttpGet]
-        //[Route("{id}")]
-        //public async Task<IActionResult> GetOrderById(Guid id)
-        //{
-        //    try
-        //    {
-        //        var orderById = await orderRepository.GetOrderByIdAsync(id);
-
-        //        if (orderById == null)
-        //        {
-        //            return NotFound(new
-        //            {
-        //                Message = "Order not found.",
-        //                ProductCode = string.Empty,
-        //                ErrorMessage = "Invalid Order ID."
-        //            });
-        //        }
-
-        //        // Use AutoMapper to map the Product entity to ProductDTO.
-        //        var productDto = _mapper.Map<OrderDTO>(orderById);
-
-        //        return Ok(new
-        //        {
-        //            Message = "Product retrieved successfully.",
-        //            Product = productDto,
-        //            ErrorMessage = string.Empty
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new
-        //        {
-        //            Message = "An error occurred while retrieving the product.",
-        //            ProductCode = string.Empty,
-        //            ErrorMessage = ex.Message
-        //        });
-        //    }
-        //}
-
-
         [HttpPost("CreateOrder")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDTO orderRequestDto)
         {
+            Console.WriteLine("🟢 [TRACE] Entering CreateOrder method...");
 
             if (orderRequestDto == null || orderRequestDto.OrderDetails == null || orderRequestDto.OrderDetails.Count == 0)
             {
+                Console.WriteLine("❌ [ERROR] Order request is null or missing order details.");
                 return BadRequest(new { Message = "Invalid Order Data.", ErrorMessage = "Order details are missing." });
             }
 
+            Console.WriteLine($"🟢 [TRACE] Received order request for RetailerID: {orderRequestDto.RetailerID}");
+
             var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { orderRequestDto.RetailerID });
+
             if (retailer == null || !retailer.ContainsKey(orderRequestDto.RetailerID))
             {
+                Console.WriteLine("❌ [ERROR] Invalid Retailer ID - Retailer does not exist.");
                 return BadRequest(new { Message = "Invalid Retailer ID.", ErrorMessage = "The provided Retailer ID does not exist." });
             }
 
+            Console.WriteLine($"✅ [TRACE] Retailer found: {retailer[orderRequestDto.RetailerID].UserName}");
 
             try
             {
-                var totalPrice = CalculateTotalCost(orderRequestDto.OrderDetails);  // Add logic to calculate total price
-                //var shippingCost = CalculateShippingCost(totalPrice);  // Calculate shipping cost
+                Console.WriteLine("🟢 [TRACE] Calculating total price...");
+                var totalPrice = CalculateTotalCost(orderRequestDto.OrderDetails);
+                Console.WriteLine($"✅ [TRACE] Total price calculated: {totalPrice}");
 
-                // Map the incoming CreateProductDTO to a Product entity.
+
+                Console.WriteLine($"[TRACE] Order Details Count: {orderRequestDto.OrderDetails?.Count}");
+                foreach (var detail in orderRequestDto.OrderDetails ?? new List<CreateOrderDetailsDTO>())
+                {
+                    Console.WriteLine($"[TRACE] Product ID: {detail.ProductID}, Quantity: {detail.Quantity}");
+                }
+
+
+                Console.WriteLine("🟢 [TRACE] Mapping DTO to Order model...");
                 var orderModel = _mapper.Map<CreateOrderDTO, Order>(orderRequestDto);
                 orderModel.TotalPrice = totalPrice;
+
+                Console.WriteLine("🟢 [TRACE] Attempting to save order to database...");
                 orderModel = await orderRepository.CreateOrderAsync(orderModel);
 
+                if (orderModel == null)
+                {
+                    Console.WriteLine("❌ [ERROR] Order creation failed, repository returned null.");
+                    return StatusCode(500, new { Message = "Order creation failed.", ErrorMessage = "Repository returned null." });
+                }
+
+                Console.WriteLine($"✅ [TRACE] Order created successfully! OrderID: {orderModel.OrderID}");
+
                 var cartIDs = orderRequestDto.OrderDetails.Select(detail => detail.CartID).ToList();
+                Console.WriteLine($"🟢 [TRACE] Deactivating {cartIDs.Count} shopping cart items...");
+
                 foreach (var cartID in cartIDs)
                 {
+                    Console.WriteLine($"🟢 [TRACE] Deactivating cart item: {cartID}");
                     await DeactivateShoppingCartItemById(cartID);
                 }
+
+                Console.WriteLine("✅ [TRACE] Shopping cart items deactivated successfully.");
 
                 var response = new
                 {
                     Message = "Order created successfully.",
                     ErrorMessage = ""
                 };
+
+                Console.WriteLine("✅ [TRACE] Order processing completed successfully!");
                 return Ok(new { orderID = orderModel.OrderID, response });
             }
-
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ [EXCEPTION] {ex.Message}");
+                Console.WriteLine($"❌ [EXCEPTION] Inner Exception: {ex.InnerException?.Message}");
+
                 var response = new
                 {
                     Message = "Order creation failed.",
-                    ErrorMessage = ex.Message + Environment.NewLine + ex.InnerException
+                    ErrorMessage = ex.Message + Environment.NewLine + (ex.InnerException?.Message ?? "")
                 };
 
                 return StatusCode(500, response);
             }
         }
+
 
         [HttpPost("CreateShoppingCart")]
         public async Task<IActionResult> CreateShoppingCartItemAsync([FromBody] CreateShoppingCartDTO shoppingCartDto)
@@ -240,11 +256,11 @@ namespace OrderManagement.Controllers
 
 
 
-        private async Task<string> SetProductImagePath(Guid productID)
-        {
-            var product = await GetProductByProductID(productID);
-            return string.Empty;
-        }
+        //private async Task<string> SetProductImagePath(Guid productID)
+        //{
+        //    var product = await GetProductByProductID(productID);
+        //    return string.Empty;
+        //}
 
         private async Task<Dictionary<Guid, User>> GetUserInfoByRetailerIdAsync(List<Guid> retailerIDs)
         {
@@ -269,11 +285,11 @@ namespace OrderManagement.Controllers
         }
 
 
-        private decimal CalculateShippingCost(decimal totalPrice)
-        {
-            decimal shippingCost = totalPrice * 0.03m;
-            return shippingCost;
-        }
+        //private decimal CalculateShippingCost(decimal totalPrice)
+        //{
+        //    decimal shippingCost = totalPrice * 0.03m;
+        //    return shippingCost;
+        //}
 
         private decimal CalculateTotalCost(List<CreateOrderDetailsDTO> items)
         {
@@ -292,29 +308,38 @@ namespace OrderManagement.Controllers
         {
             try
             {
+                Console.WriteLine($"[TRACE] Entering GetShoppingCartByRetailerId for RetailerID: {retailerID}");
+
                 // Get orders by RetailerID
                 var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID, (int)OrderStatus.Save);
 
                 if (shoppingCart == null || shoppingCart.Count == 0)
                 {
-                    return StatusCode(404, new
+                    Console.WriteLine($"[TRACE] No shopping cart found for RetailerID: {retailerID}");
+                    return new ObjectResult(new
                     {
-                        Message = "No cart items found for the provided Retailer." + retailerID,
+                        Message = $"No cart items found for the provided Retailer. {retailerID}",
                         ErrorMessage = ""
-                    });
+                    })
+                    {
+                        StatusCode = 404
+                    };
                 }
+
+                Console.WriteLine($"[TRACE] Shopping cart found. Number of items: {shoppingCart.Count}");
 
                 // Map entities to DTOs
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
 
                 // Get user information by retailer IDs
                 var retailerIDs = shoppingCart.Select(sc => sc.RetailerID).Distinct().ToList();
-
+                Console.WriteLine($"[TRACE] Retrieved retailer IDs: {string.Join(", ", retailerIDs)}");
 
                 var retailers = await GetUserInfoByRetailerIdAsync(retailerIDs);
 
                 foreach (var cart in shoppingCartDTO)
                 {
+                    Console.WriteLine($"[TRACE] Processing cart item for Retailer ID: {cart.RetailerID}");
 
                     if (retailers.ContainsKey(cart.RetailerID))
                     {
@@ -322,17 +347,35 @@ namespace OrderManagement.Controllers
                         cart.RetailerName = retailer.UserName;
                         cart.PhoneNumber = retailer.PhoneNo;
                         cart.Address = retailer.Address;
+                        Console.WriteLine($"[TRACE] Retrieved retailer details: {cart.RetailerName}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WARNING] No retailer details found for Retailer ID: {cart.RetailerID}");
                     }
 
                     var product = await GetProductByProductID(cart.ProductID);
-                    cart.ProductName = product != null ? product.ProductName : string.Empty;
-                    cart.IsOutOfStock = product != null ? product.Quantity < cart.OrderQuantity : false;
-                    cart.ManufacturerID = product != null ? product.ManufacturerID : Guid.Empty;
+                    if (product != null)
+                    {
+                        cart.ProductName = product.ProductName;
+                        cart.IsOutOfStock = product.Quantity < cart.OrderQuantity;
+                        cart.ManufacturerID = product.ManufacturerID;
+                        Console.WriteLine($"[TRACE] Retrieved product: {cart.ProductName}, Manufacturer ID: {cart.ManufacturerID}");
+                    }
+                    else
+                    {
+                        cart.ProductName = string.Empty;
+                        cart.IsOutOfStock = false;
+                        cart.ManufacturerID = Guid.Empty;
+                        Console.WriteLine($"[WARNING] No product details found for Product ID: {cart.ProductID}");
+                    }
+
                     cart.ProductImagePath = string.Empty;
                     cart.TotalPrice = cart.OrderQuantity * cart.ProductPrice;
-                    cart.OrderQuantity = cart.OrderQuantity;
-
                 }
+
+                Console.WriteLine($"[TRACE] Returning shopping cart details. Total items: {shoppingCartDTO.Count}");
+
                 return Ok(new
                 {
                     Message = "Cart Items fetched successfully.",
@@ -340,13 +383,13 @@ namespace OrderManagement.Controllers
                     NumberOfOrderItems = shoppingCartDTO.Count,
                     CartDetails = shoppingCartDTO
                 });
-
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[ERROR] Exception occurred while fetching cart items: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    Message = "An error occurred while retrieving the cart items for - " + retailerID,
+                    Message = $"An error occurred while retrieving the cart items for RetailerID: {retailerID}",
                     ErrorMessage = ex.Message
                 });
             }
@@ -424,8 +467,6 @@ namespace OrderManagement.Controllers
                     OrderId = updatedOrder.OrderID,
                     ErrorMessage = string.Empty
                 });
-
-                //return Ok(new { Message = "Order updated successfully.", OrderID = updatedOrder.OrderID });
             }
             catch (Exception ex)
             {
@@ -437,75 +478,8 @@ namespace OrderManagement.Controllers
                 };
 
                 return StatusCode(500, response);
-
             }
         }
-
-        //[HttpPut("AcceptOrder")]
-        //public async Task<IActionResult> AcceptOrder([FromBody] AcceptOrderDTO acceptOrderDto, [FromServices] IProductServiceClient productServiceClient)
-        //{
-        //    if (acceptOrderDto == null || acceptOrderDto.OrderID == Guid.Empty || string.IsNullOrEmpty(acceptOrderDto.OrderStatus))
-        //    {
-        //        return BadRequest(new { Message = "Invalid request.", ErrorMessage = "OrderID and OrderStatus are required." });
-        //    }
-
-        //    try
-        //    {
-        //        var existingOrder = await orderRepository.GetOrderByIdAsync(acceptOrderDto.OrderID);
-        //        if (existingOrder == null)
-        //        {
-        //            return NotFound(new { Message = "Order not found.", ErrorMessage = "Invalid Order ID." });
-        //        }
-
-        //        if (existingOrder.OrderStatus != (int)OrderStatus.Accepted)
-        //        {
-        //            return BadRequest(new { Message = "Order cannot be accepted.", ErrorMessage = "Only 'New' orders can be accepted." });
-        //        }
-
-        //        _mapper.Map(acceptOrderDto, existingOrder);
-
-        //        var orderDetails = await orderRepository.GetOrderDetailsByOrderIdAsync(acceptOrderDto.OrderID);
-        //        if (orderDetails == null || !orderDetails.Any())
-        //        {
-        //            return BadRequest(new { Message = "No order details found.", ErrorMessage = "Cannot process order without items." });
-        //        }
-
-        //        foreach (var item in orderDetails)
-        //        {
-        //            var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
-
-        //            if (product == null)
-        //            {
-        //                return BadRequest(new { Message = "Product not found.", ErrorMessage = $"ProductID {item.ProductID} does not exist." });
-        //            }
-
-        //            if (product.Quantity == null || product.Quantity < item.Quantity)
-        //            {
-        //                return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
-        //            }
-
-        //            int updatedQuantity = (product.Quantity ?? 0) - item.Quantity;
-        //            bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(item.ProductID, updatedQuantity);
-
-        //            if (!productUpdated)
-        //            {
-        //                return StatusCode(500, new { Message = "Failed to update product quantity.", ErrorMessage = $"Could not update ProductID {product.ProductID}." });
-        //            }
-        //        }
-
-        //        var updatedOrder = await orderRepository.UpdateOrderAsync(existingOrder);
-        //        if (updatedOrder == null)
-        //        {
-        //            return StatusCode(500, new { Message = "Failed to update order.", ErrorMessage = "Internal server error." });
-        //        }
-
-        //        return Ok(new { Message = "Order accepted successfully.", OrderID = updatedOrder.OrderID });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { Message = "An error occurred while accepting the order.", ErrorMessage = ex.Message });
-        //    }
-        //}
 
         [HttpPut("AcceptRejectOrder")]
         public async Task<IActionResult> AcceptRejectOrder([FromBody] AcceptOrderDTO acceptOrderDto)
@@ -626,226 +600,72 @@ namespace OrderManagement.Controllers
 
             return product;
         }
-        //GetOrders by Manufacturer id 
-        [HttpGet("GetOrdersByManufacturerId/{manufacturerId}")]
-        public async Task<IActionResult> GetOrdersByManufacturerId(Guid manufacturerId)
-        {
-            try
-            {
-                // Get orders by ManufacturerID
-                var orders = await orderRepository.GetOrderByManufacturerIdAsync(manufacturerId);
-                if (orders == null || !orders.Any())
-                {
-                    return Ok(new
-                    {
-                        Message = "Failed",
-                        ErrorMessage = "No orders found for the provided Manufacturer ID."
-                    });
-                }
 
-                // Get related order details for each order
-                var orderDetails = await orderDetailsRepository.FindByCondition(od => orders.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
-                // Map entities to DTOs
-                var ordersDto = _mapper.Map<List<CreateOrderDTO>>(orders);
-                var orderDetailsDto = _mapper.Map<List<CreateOrderDetailsDTO>>(orderDetails);
-                return Ok(new
-                {
-
-                    Message = "Orders fetched successfully.",
-                    ErrorMessage = string.Empty,
-                    Data = ordersDto.Select(order => new
-                    {
-
-                        retailerID = order.RetailerID,
-                        paymentMode = order.PaymentMode,
-                        paymentCurrency = order.PaymentCurrency,
-                        shippingCost = order.ShippingCost,
-                        shippingCurrency = order.ShippingCurrency,
-                        shippingAddress = order.ShippingAddress,
-                        createdBy = order.CreatedBy,
-                        orderDetails = orderDetailsDto.Select(detail => new
-                        {
-                            productID = detail.ProductID,
-                            manufacturerId = detail.ManufacturerID,
-                            quantity = detail.Quantity,
-                            productPrice = detail.ProductPrice
-                        }).ToList()
-                    }).ToList()
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    Message = "An error occurred while retrieving the orders for - ",
-                    ManufacturerId = manufacturerId,
-                    ErrorMessage = ex.Message
-                });
-            }
-        }
-
-
-        [HttpGet]
-        [Route("{id}")]
-        public async Task<IActionResult> GetOrderById(Guid id)
-        {
-            try
-            {
-                // Get orders by ManufacturerID
-                var order = await orderRepository.GetOrderByOrderIdAsync(id);
-                if (order == null || !order.Any())
-                {
-                    return Ok(new
-                    {
-                        Message = "Failed",
-                        ErrorMessage = "No order found for the provided order ID."
-                    });
-                }
-
-                // Get related order details for each order
-                var orderDetails = await orderDetailsRepository.FindByCondition(od => order.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
-
-                // Map entities to DTOs
-                var orderDto = _mapper.Map<List<GetOrderDTO>>(order);
-                var orderDetailsDto = _mapper.Map<List<GetOrderDetailsDTO>>(orderDetails);
-                return Ok(new
-                {
-
-                    Message = "Order fetched successfully.",
-                    ErrorMessage = string.Empty,
-                    Data = orderDto.Select(order => new
-                    {
-                        orderID = order.OrderID,
-                        retailerID = order.RetailerID,
-                        manufacturerID = order.ManufacturerID,
-                        deliveryPersonnelId = order.DeliveryPersonnelID,
-                        orderStatus = order.OrderStatus,
-                        totalPrice = order.TotalPrice,
-                        paymentMode = order.PaymentMode,
-                        paymentCurrency = order.PaymentCurrency,
-                        shippingCost = order.ShippingCost,
-                        shippingCurrency = order.ShippingCurrency,
-                        shippingAddress = order.ShippingAddress,
-                        createdOn = order.CreatedOn,
-                        createdBy = order.CreatedBy,
-                        updatedOn = order.UpdatedOn,
-                        updatedBy = order.UpdatedBy,
-                        orderDetails = orderDetailsDto.Select(detail => new
-                        {
-                            orderDetailid = detail.OrderDetailID,
-                            productID = detail.ProductID,
-                            quantity = detail.Quantity,
-                            productPrice = detail.ProductPrice
-                        }).ToList()
-                    }).ToList()
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    Message = "An error occurred while retrieving the orders for - ",
-                    ManufacturerId = id,
-                    ErrorMessage = ex.Message
-                });
-            }
-        }
-
-        //[HttpPut]
+        //[HttpGet]
         //[Route("{id}")]
-        //public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductDTO updateProductRequestDto)
+        //public async Task<IActionResult> GetOrderById(Guid id)
         //{
         //    try
         //    {
-        //        // Check if the product exists
-        //        var existingProduct = await orderRepository.GetProductByIdAsync(id);
-        //        if (existingProduct == null)
+        //        // Get orders by ManufacturerID
+        //        var order = await orderRepository.GetOrderByOrderIdAsync(id);
+        //        if (order == null || !order.Any())
         //        {
-        //            return NotFound(new
+        //            return Ok(new
         //            {
-        //                Message = "Product not found.",
-        //                ProductCode = string.Empty,
-        //                ErrorMessage = "Invalid product ID."
+        //                Message = "Failed",
+        //                ErrorMessage = "No order found for the provided order ID."
         //            });
         //        }
 
-        //        // Use AutoMapper to update the existing product with values from the DTO.
-        //        _mapper.Map(updateProductRequestDto, existingProduct);
+        //        // Get related order details for each order
+        //        var orderDetails = await orderDetailsRepository.FindByCondition(od => order.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
 
-        //        // Optionally update properties that aren’t handled by AutoMapper.
-        //        existingProduct.UpdatedOn = DateTime.UtcNow;
-
-        //        // Update the product in the repository
-        //        var updatedProduct = await orderRepository.UpdateProductAsync(id, existingProduct);
-
-        //        if (updatedProduct == null)
-        //        {
-        //            return StatusCode(500, new
-        //            {
-        //                Message = "Failed to update product.",
-        //                ProductCode = string.Empty,
-        //                ErrorMessage = "Internal server error."
-        //            });
-        //        }
-
+        //        // Map entities to DTOs
+        //        var orderDto = _mapper.Map<List<GetOrderDTO>>(order);
+        //        var orderDetailsDto = _mapper.Map<List<GetOrderDetailsDTO>>(orderDetails);
         //        return Ok(new
         //        {
-        //            Message = "Product updated successfully.",
-        //            ProductCode = updatedProduct.ProductCode,
-        //            ErrorMessage = string.Empty
+
+        //            Message = "Order fetched successfully.",
+        //            ErrorMessage = string.Empty,
+        //            Data = orderDto.Select(order => new
+        //            {
+        //                orderID = order.OrderID,
+        //                retailerID = order.RetailerID,
+        //                manufacturerID = order.ManufacturerID,
+        //                deliveryPersonnelId = order.DeliveryPersonnelID,
+        //                orderStatus = order.OrderStatus,
+        //                totalPrice = order.TotalPrice,
+        //                paymentMode = order.PaymentMode,
+        //                paymentCurrency = order.PaymentCurrency,
+        //                shippingCost = order.ShippingCost,
+        //                shippingCurrency = order.ShippingCurrency,
+        //                shippingAddress = order.ShippingAddress,
+        //                createdOn = order.CreatedOn,
+        //                createdBy = order.CreatedBy,
+        //                updatedOn = order.UpdatedOn,
+        //                updatedBy = order.UpdatedBy,
+        //                orderDetails = orderDetailsDto.Select(detail => new
+        //                {
+        //                    orderDetailid = detail.OrderDetailID,
+        //                    productID = detail.ProductID,
+        //                    quantity = detail.Quantity,
+        //                    productPrice = detail.ProductPrice
+        //                }).ToList()
+        //            }).ToList()
         //        });
         //    }
         //    catch (Exception ex)
         //    {
         //        return StatusCode(500, new
         //        {
-        //            Message = "An error occurred while updating the product.",
-        //            ProductCode = string.Empty,
+        //            Message = "An error occurred while retrieving the orders for - ",
+        //            ManufacturerId = id,
         //            ErrorMessage = ex.Message
         //        });
         //    }
         //}
-
-
-        //[HttpDelete]
-        //[Route("{id}")]
-        //public async Task<IActionResult> DeleteProduct(Guid id)
-        //{
-        //    try
-        //    {
-        //        // Check if the product exists
-        //        var productById = await orderRepository.GetProductByIdAsync(id);
-        //        if (productById == null)
-        //        {
-        //            return NotFound(new
-        //            {
-        //                Message = "Product not found.",
-        //                ProductCode = string.Empty,
-        //                ErrorMessage = "Invalid product ID."
-        //            });
-        //        }
-
-        //        productById.IsActive = false;
-
-        //        await orderRepository.UpdateProductAsync(id, productById);
-        //        return Ok(new
-        //        {
-        //            Message = "Product deleted successfully.",
-        //            ProductCode = productById.ProductCode,
-        //            ErrorMessage = string.Empty
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new
-        //        {
-        //            Message = "An error occurred while deleting the product.",
-        //            ProductCode = string.Empty,
-        //            ErrorMessage = ex.Message
-        //        });
-        //    }
-        //}
-
 
     }
 }
