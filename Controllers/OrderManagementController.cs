@@ -309,10 +309,7 @@ namespace OrderManagement.Controllers
             try
             {
                 Console.WriteLine($"[TRACE] Entering GetShoppingCartByRetailerId for RetailerID: {retailerID}");
-
-                // Get orders by RetailerID
                 var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID, (int)OrderStatus.Save);
-
                 if (shoppingCart == null || shoppingCart.Count == 0)
                 {
                     Console.WriteLine($"[TRACE] No shopping cart found for RetailerID: {retailerID}");
@@ -327,14 +324,9 @@ namespace OrderManagement.Controllers
                 }
 
                 Console.WriteLine($"[TRACE] Shopping cart found. Number of items: {shoppingCart.Count}");
-
-                // Map entities to DTOs
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
-
-                // Get user information by retailer IDs
                 var retailerIDs = shoppingCart.Select(sc => sc.RetailerID).Distinct().ToList();
                 Console.WriteLine($"[TRACE] Retrieved retailer IDs: {string.Join(", ", retailerIDs)}");
-
                 var retailers = await GetUserInfoByRetailerIdAsync(retailerIDs);
 
                 foreach (var cart in shoppingCartDTO)
@@ -600,73 +592,6 @@ namespace OrderManagement.Controllers
 
             return product;
         }
-
-        //[HttpGet]
-        //[Route("{id}")]
-        //public async Task<IActionResult> GetOrderById(Guid id)
-        //{
-        //    try
-        //    {
-        //        // Get orders by ManufacturerID
-        //        var order = await orderRepository.GetOrderByOrderIdAsync(id);
-        //        if (order == null || !order.Any())
-        //        {
-        //            return Ok(new
-        //            {
-        //                Message = "Failed",
-        //                ErrorMessage = "No order found for the provided order ID."
-        //            });
-        //        }
-
-        //        // Get related order details for each order
-        //        var orderDetails = await orderDetailsRepository.FindByCondition(od => order.Select(o => o.OrderID).Contains(od.OrderID)).ToListAsync();
-
-        //        // Map entities to DTOs
-        //        var orderDto = _mapper.Map<List<GetOrderDTO>>(order);
-        //        var orderDetailsDto = _mapper.Map<List<GetOrderDetailsDTO>>(orderDetails);
-        //        return Ok(new
-        //        {
-
-        //            Message = "Order fetched successfully.",
-        //            ErrorMessage = string.Empty,
-        //            Data = orderDto.Select(order => new
-        //            {
-        //                orderID = order.OrderID,
-        //                retailerID = order.RetailerID,
-        //                manufacturerID = order.ManufacturerID,
-        //                deliveryPersonnelId = order.DeliveryPersonnelID,
-        //                orderStatus = order.OrderStatus,
-        //                totalPrice = order.TotalPrice,
-        //                paymentMode = order.PaymentMode,
-        //                paymentCurrency = order.PaymentCurrency,
-        //                shippingCost = order.ShippingCost,
-        //                shippingCurrency = order.ShippingCurrency,
-        //                shippingAddress = order.ShippingAddress,
-        //                createdOn = order.CreatedOn,
-        //                createdBy = order.CreatedBy,
-        //                updatedOn = order.UpdatedOn,
-        //                updatedBy = order.UpdatedBy,
-        //                orderDetails = orderDetailsDto.Select(detail => new
-        //                {
-        //                    orderDetailid = detail.OrderDetailID,
-        //                    productID = detail.ProductID,
-        //                    quantity = detail.Quantity,
-        //                    productPrice = detail.ProductPrice
-        //                }).ToList()
-        //            }).ToList()
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new
-        //        {
-        //            Message = "An error occurred while retrieving the orders for - ",
-        //            ManufacturerId = id,
-        //            ErrorMessage = ex.Message
-        //        });
-        //    }
-        //}
-
     }
 }
 
