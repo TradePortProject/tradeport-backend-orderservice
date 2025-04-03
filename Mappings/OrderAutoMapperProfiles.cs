@@ -49,13 +49,6 @@ namespace OrderManagement.Mappings
                 .ForMember(dest => dest.ProductName, opt => opt.Ignore())//Ignore because it’s computed
                 .ForMember(dest => dest.ManufacturerName, opt => opt.Ignore());//Ignore because it’s computed
 
-            //CreateMap<Order, GetOrderDTO>();
-
-            //CreateMap<GetOrderDTO, Order>();
-
-            //CreateMap<OrderDetails, GetOrderDetailsDTO>();
-
-            //CreateMap<GetOrderDetailsDTO, OrderDetails>();
             CreateMap<ShoppingCart, CreateShoppingCartDTO>();
             CreateMap<CreateShoppingCartDTO, ShoppingCart>();
 

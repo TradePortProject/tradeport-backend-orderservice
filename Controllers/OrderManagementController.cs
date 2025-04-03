@@ -55,20 +55,14 @@ namespace OrderManagement.Controllers
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
         {
-            Console.WriteLine("✅ [DEBUG] Entering GetOrdersAndOrderDetails...");
-
             // Fetch orders
             var (orders, totalPages) = await orderRepository.GetFilteredOrdersAsync(
                 orderId, retailerId, deliveryPersonnelId, orderStatus, manufacturerId, orderItemStatus, retailerName, manufacturerName, productName, pageNumber, pageSize);
 
-            Console.WriteLine($"✅ [DEBUG] orders count: {orders?.Count() ?? 0}"); // Check if orders is null
-
             var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
 
-            // ❌ Check if orderDtos is NULL before calling Select()
             if (orderDtos == null)
             {
-                Console.WriteLine("❌ [ERROR] orderDtos is NULL! Returning empty result.");
                 return Ok(new
                 {
                     Message = "Orders retrieved successfully.",
@@ -118,65 +112,42 @@ namespace OrderManagement.Controllers
         [HttpPost("CreateOrder")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDTO orderRequestDto)
         {
-            Console.WriteLine("🟢 [TRACE] Entering CreateOrder method...");
-
             if (orderRequestDto == null || orderRequestDto.OrderDetails == null || orderRequestDto.OrderDetails.Count == 0)
             {
-                Console.WriteLine("❌ [ERROR] Order request is null or missing order details.");
                 return BadRequest(new { Message = "Invalid Order Data.", ErrorMessage = "Order details are missing." });
             }
-
-            Console.WriteLine($"🟢 [TRACE] Received order request for RetailerID: {orderRequestDto.RetailerID}");
 
             var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { orderRequestDto.RetailerID });
 
             if (retailer == null || !retailer.ContainsKey(orderRequestDto.RetailerID))
             {
-                Console.WriteLine("❌ [ERROR] Invalid Retailer ID - Retailer does not exist.");
                 return BadRequest(new { Message = "Invalid Retailer ID.", ErrorMessage = "The provided Retailer ID does not exist." });
             }
-
-            Console.WriteLine($"✅ [TRACE] Retailer found: {retailer[orderRequestDto.RetailerID].UserName}");
-
             try
             {
-                Console.WriteLine("🟢 [TRACE] Calculating total price...");
                 var totalPrice = CalculateTotalCost(orderRequestDto.OrderDetails);
-                Console.WriteLine($"✅ [TRACE] Total price calculated: {totalPrice}");
 
-
-                Console.WriteLine($"[TRACE] Order Details Count: {orderRequestDto.OrderDetails?.Count}");
                 foreach (var detail in orderRequestDto.OrderDetails ?? new List<CreateOrderDetailsDTO>())
                 {
                     Console.WriteLine($"[TRACE] Product ID: {detail.ProductID}, Quantity: {detail.Quantity}");
                 }
 
-
-                Console.WriteLine("🟢 [TRACE] Mapping DTO to Order model...");
                 var orderModel = _mapper.Map<CreateOrderDTO, Order>(orderRequestDto);
                 orderModel.TotalPrice = totalPrice;
 
-                Console.WriteLine("🟢 [TRACE] Attempting to save order to database...");
                 orderModel = await orderRepository.CreateOrderAsync(orderModel);
 
                 if (orderModel == null)
                 {
-                    Console.WriteLine("❌ [ERROR] Order creation failed, repository returned null.");
                     return StatusCode(500, new { Message = "Order creation failed.", ErrorMessage = "Repository returned null." });
                 }
 
-                Console.WriteLine($"✅ [TRACE] Order created successfully! OrderID: {orderModel.OrderID}");
-
                 var cartIDs = orderRequestDto.OrderDetails.Select(detail => detail.CartID).ToList();
-                Console.WriteLine($"🟢 [TRACE] Deactivating {cartIDs.Count} shopping cart items...");
 
                 foreach (var cartID in cartIDs)
                 {
-                    Console.WriteLine($"🟢 [TRACE] Deactivating cart item: {cartID}");
                     await DeactivateShoppingCartItemById(cartID);
                 }
-
-                Console.WriteLine("✅ [TRACE] Shopping cart items deactivated successfully.");
 
                 var response = new
                 {
@@ -184,14 +155,10 @@ namespace OrderManagement.Controllers
                     ErrorMessage = ""
                 };
 
-                Console.WriteLine("✅ [TRACE] Order processing completed successfully!");
                 return Ok(new { orderID = orderModel.OrderID, response });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [EXCEPTION] {ex.Message}");
-                Console.WriteLine($"❌ [EXCEPTION] Inner Exception: {ex.InnerException?.Message}");
-
                 var response = new
                 {
                     Message = "Order creation failed.",
@@ -254,8 +221,6 @@ namespace OrderManagement.Controllers
             }
         }
 
-
-
         //private async Task<string> SetProductImagePath(Guid productID)
         //{
         //    var product = await GetProductByProductID(productID);
@@ -284,7 +249,6 @@ namespace OrderManagement.Controllers
             return result;
         }
 
-
         //private decimal CalculateShippingCost(decimal totalPrice)
         //{
         //    decimal shippingCost = totalPrice * 0.03m;
@@ -312,7 +276,6 @@ namespace OrderManagement.Controllers
                 var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAsync(retailerID, (int)OrderStatus.Save);
                 if (shoppingCart == null || shoppingCart.Count == 0)
                 {
-                    Console.WriteLine($"[TRACE] No shopping cart found for RetailerID: {retailerID}");
                     return new ObjectResult(new
                     {
                         Message = $"No cart items found for the provided Retailer. {retailerID}",
@@ -323,16 +286,12 @@ namespace OrderManagement.Controllers
                     };
                 }
 
-                Console.WriteLine($"[TRACE] Shopping cart found. Number of items: {shoppingCart.Count}");
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
                 var retailerIDs = shoppingCart.Select(sc => sc.RetailerID).Distinct().ToList();
-                Console.WriteLine($"[TRACE] Retrieved retailer IDs: {string.Join(", ", retailerIDs)}");
                 var retailers = await GetUserInfoByRetailerIdAsync(retailerIDs);
 
                 foreach (var cart in shoppingCartDTO)
                 {
-                    Console.WriteLine($"[TRACE] Processing cart item for Retailer ID: {cart.RetailerID}");
-
                     if (retailers.ContainsKey(cart.RetailerID))
                     {
                         var retailer = retailers[cart.RetailerID];
@@ -352,21 +311,17 @@ namespace OrderManagement.Controllers
                         cart.ProductName = product.ProductName;
                         cart.IsOutOfStock = product.Quantity < cart.OrderQuantity;
                         cart.ManufacturerID = product.ManufacturerID;
-                        Console.WriteLine($"[TRACE] Retrieved product: {cart.ProductName}, Manufacturer ID: {cart.ManufacturerID}");
                     }
                     else
                     {
                         cart.ProductName = string.Empty;
                         cart.IsOutOfStock = false;
                         cart.ManufacturerID = Guid.Empty;
-                        Console.WriteLine($"[WARNING] No product details found for Product ID: {cart.ProductID}");
                     }
 
                     cart.ProductImagePath = string.Empty;
                     cart.TotalPrice = cart.OrderQuantity * cart.ProductPrice;
                 }
-
-                Console.WriteLine($"[TRACE] Returning shopping cart details. Total items: {shoppingCartDTO.Count}");
 
                 return Ok(new
                 {
@@ -378,7 +333,6 @@ namespace OrderManagement.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Exception occurred while fetching cart items: {ex.Message}");
                 return StatusCode(500, new
                 {
                     Message = $"An error occurred while retrieving the cart items for RetailerID: {retailerID}",
