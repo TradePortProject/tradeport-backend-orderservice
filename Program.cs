@@ -6,6 +6,12 @@ using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
 using OrderManagement.ExternalServices;
+using Serilog;
+using OrderManagement.Logger.interfaces;
+using OrderManagement.Logger;
+using Castle.Core.Configuration;
+using Serilog.Events;
+using Serilog.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +60,16 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure Serilog from appsettings.json
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)  // Reads from appsettings.json
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Filter.ByIncludingOnly(Matching.FromSource("OrderManagement.Controllers.OrderManagementController"))
+    .CreateLogger();
+builder.Host.UseSerilog(); // Register Serilog
+// Register IAppLogger<T>
+builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(3017); // HTTP port

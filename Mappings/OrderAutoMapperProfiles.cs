@@ -2,8 +2,6 @@
 using OrderManagement.Models;
 using OrderManagement.Models.DTO;
 using OrderManagement.Common;
-using System.ComponentModel.DataAnnotations;
-using System.Reflection;
 
 namespace OrderManagement.Mappings
 {
@@ -37,15 +35,15 @@ namespace OrderManagement.Mappings
 
             CreateMap<Order, OrderDto>()
                 .ForMember(dest => dest.OrderStatusValue,
-                    opt => opt.MapFrom(src => GetEnumDisplayName((OrderStatus)src.OrderStatus))) // ✅ Convert OrderStatus to string
+                    opt => opt.MapFrom(src => EnumHelper.GetEnumDisplayName((OrderStatus)src.OrderStatus))) // ✅ Convert OrderStatus to string
                 .ForMember(dest => dest.PaymentModeValue,
-                    opt => opt.MapFrom(src => GetEnumDisplayName((PaymentMode)src.PaymentMode))) // ✅ Convert PaymentMode to string
+                    opt => opt.MapFrom(src => EnumHelper.GetEnumDisplayName((PaymentMode)src.PaymentMode))) // ✅ Convert PaymentMode to string
                 .ForMember(dest => dest.RetailerName, opt => opt.Ignore());//Ignore because it’s computed
 
 
             CreateMap<OrderDetails, OrderDetailsDto>()
                 .ForMember(dest => dest.OrderItemStatusValue,
-                    opt => opt.MapFrom(src => GetEnumDisplayName((OrderStatus)src.OrderItemStatus))) // ✅ Convert OrderItemStatus to string
+                    opt => opt.MapFrom(src => EnumHelper.GetEnumDisplayName((OrderStatus)src.OrderItemStatus))) // ✅ Convert OrderItemStatus to string
                 .ForMember(dest => dest.ProductName, opt => opt.Ignore())//Ignore because it’s computed
                 .ForMember(dest => dest.ManufacturerName, opt => opt.Ignore());//Ignore because it’s computed
 
@@ -66,19 +64,14 @@ namespace OrderManagement.Mappings
             // Convert string to int when mapping DTO → Entity
             CreateMap<UpdateOrderDTO, Order>()
                 .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.Submitted))
-                .ForMember(dest => dest.DeliveryPersonnelID,
-                    opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.DeliveryPersonnelID)
-                        ? (Guid?)null : Guid.Parse(src.DeliveryPersonnelID)))
+                    opt => opt.MapFrom(src => EnumHelper.GetEnumValueFromDisplayName<OrderStatus>(src.OrderStatus) ?? (int)OrderStatus.Submitted))       
                 .ForMember(dest => dest.UpdatedOn, opt => opt.MapFrom(src => DateTime.UtcNow));
 
             // Convert int to string when mapping Entity → DTO
             CreateMap<Order, UpdateOrderDTO>()
                 .ForMember(dest => dest.OrderStatus,
-                    opt => opt.MapFrom(src => GetEnumDisplayName((OrderStatus)src.OrderStatus)))
-                .ForMember(dest => dest.DeliveryPersonnelID,
-                    opt => opt.MapFrom(src => src.DeliveryPersonnelID.HasValue
-                        ? src.DeliveryPersonnelID.ToString() : ""));
+                    opt => opt.MapFrom(src => EnumHelper.GetEnumDisplayName((OrderStatus)src.OrderStatus)));
+    
 
             // ✅ Mapping for Accepting Order
             CreateMap<AcceptOrderDTO, Order>()
@@ -98,27 +91,7 @@ namespace OrderManagement.Mappings
                 //        ? src.DeliveryPersonnelID.ToString() : ""));
         }
 
-        // Helper to get enum int value from display name
-        private static int? GetEnumValueFromDisplayName<TEnum>(string displayName) where TEnum : struct, Enum
-        {
-            foreach (var field in typeof(TEnum).GetFields())
-            {
-                var attribute = field.GetCustomAttribute<DisplayAttribute>();
-                if (attribute != null && attribute.Name == displayName)
-                {
-                    return (int)field.GetValue(null);
-                }
-            }
-            return null;
-        }
-
-        // Helper to get display name from enum value
-        private static string GetEnumDisplayName<TEnum>(TEnum value) where TEnum : Enum
-        {
-            var field = typeof(TEnum).GetField(value.ToString());
-            var attribute = field?.GetCustomAttribute<DisplayAttribute>();
-            return attribute?.Name ?? value.ToString();
-        }
+      
     }
 }
 
