@@ -4,7 +4,6 @@
     {
         public Guid OrderID { get; set; }
         public string OrderStatus { get; set; } 
-        public string DeliveryPersonnelID { get; set; }
     }
 }
 
