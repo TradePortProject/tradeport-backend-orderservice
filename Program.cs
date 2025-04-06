@@ -5,7 +5,13 @@ using OrderManagement.Repositories;
 using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
+using Serilog;
+using Serilog.Events;
+using Serilog.Filters;
 using OrderManagement.ExternalServices;
+using OrderManagement.Logger.interfaces;
+using OrderManagement.Logger;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +47,17 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+// Configure Serilog from appsettings.json
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)  // Reads from appsettings.json
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Filter.ByIncludingOnly(Matching.FromSource("OrderManagement.Controllers.OrderManagementController"))
+    .CreateLogger();
+builder.Host.UseSerilog(); // Register Serilog
+// Register IAppLogger<T>
+builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
 // Configure CORS
 builder.Services.AddCors(options =>
 {
