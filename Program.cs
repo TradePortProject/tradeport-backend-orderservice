@@ -80,7 +80,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
-builder.Services.AddSingleton<KafkaProducer>();
+builder.Services.AddScoped<KafkaProducer>();
 
 var app = builder.Build();
 
