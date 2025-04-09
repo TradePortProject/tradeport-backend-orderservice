@@ -80,6 +80,8 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
+builder.Services.AddSingleton<KafkaProducer>();
+
 var app = builder.Build();
 
 //Configure the HTTP request pipeline.
