@@ -16,5 +16,8 @@ public class User
     [StringLength(20)]
     public string PhoneNo { get; set; }
 
+    [StringLength(255)]
+    public string LoginID { get; set; }
+
     public int Role { get; set; } // Optional, if needed
 }
