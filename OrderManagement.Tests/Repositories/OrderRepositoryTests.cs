@@ -174,6 +174,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = retailerId,
+                    LoginID = "retailer@gmail.com",
                     UserName = retailerName,
                     Address = "123 Test Street", // Required property
                     PhoneNo = "1234567890" // Required property
@@ -181,6 +182,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = Guid.NewGuid(),
+                    LoginID = "retailer@gmail.com",
                     UserName = "Retailer B",
                     Address = "456 Test Avenue", // Required property
                     PhoneNo = "0987654321" // Required property
@@ -564,7 +566,7 @@ namespace OrderManagement.Tests.Repositories
             var manufacturerId = Guid.NewGuid();
             var productId = Guid.NewGuid();
 
-            var manufacturer = new User { UserID = manufacturerId, UserName = "Test Manufacturer", Address = "123", PhoneNo = "88889999" };
+            var manufacturer = new User { UserID = manufacturerId, LoginID = "retailer@gmail.com", UserName = "Test Manufacturer", Address = "123", PhoneNo = "88889999" };
             var product = new Product { ProductID = productId, ProductName = "Test Product", ManufacturerID = manufacturerId };
 
             var order = new Order
@@ -634,11 +636,11 @@ namespace OrderManagement.Tests.Repositories
             using var context = new AppDbContext(options);
 
             var retailerId = Guid.NewGuid();
-            var retailer = new User { UserID = retailerId, UserName = "Retailer A", Address = "123", PhoneNo = "88889999" };
+            var retailer = new User { UserID = retailerId, UserName = "Retailer A", LoginID = "retailer@gmail.com", Address = "123", PhoneNo = "88889999" };
             var productId = Guid.NewGuid();
             var product = new Product { ProductID = productId, ProductName = "Product X", ManufacturerID = Guid.NewGuid() };
             var manufacturerId = Guid.NewGuid();
-            var manufacturer = new User { UserID = manufacturerId, UserName = "Manufacturer A", Address = "123", PhoneNo = "88889999" };
+            var manufacturer = new User { UserID = manufacturerId, LoginID = "manufacturer@gmail.com", UserName = "Manufacturer A", Address = "123", PhoneNo = "88889999" };
 
             var order = new Order
             {
@@ -986,8 +988,8 @@ public static class TestDataSeeder
         });
 
         await context.Users.AddRangeAsync(
-            new User { UserID = actualManufacturerId, UserName = manufacturerName, Address = "123", PhoneNo = "88889999" },
-            new User { UserID = actualRetailerId, UserName = retailerName, Address = "123", PhoneNo = "88889999" }
+            new User { UserID = actualManufacturerId, LoginID = "manufacturer@gmail.com", UserName = manufacturerName, Address = "123", PhoneNo = "88889999" },
+            new User { UserID = actualRetailerId, LoginID = "retailer@gmail.com", UserName = retailerName, Address = "123", PhoneNo = "88889999" }
         );
 
         await context.SaveChangesAsync();

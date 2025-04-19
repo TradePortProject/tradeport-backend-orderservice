@@ -31,9 +31,9 @@ namespace OrderManagement.Tests.Repositories
             var retailerIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
             var users = new List<User>
         {
-            new User { UserID = retailerIds[0], UserName = "Retailer 1",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 },
-            new User { UserID = retailerIds[1], UserName = "Retailer 2",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 },
-            new User { UserID = Guid.NewGuid(), UserName = "Non-Retailer",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 } // Not in retailerIds
+            new User { UserID = retailerIds[0], LoginID = "retailer@gmail.com", UserName = "Retailer 1",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 },
+            new User { UserID = retailerIds[1], LoginID = "retailer@gmail.com", UserName = "Retailer 2",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 },
+            new User { UserID = Guid.NewGuid(), LoginID = "retailer@gmail.com", UserName = "Non-Retailer",Address = "123 Main St",PhoneNo = "1234567890", Role = 1 } // Not in retailerIds
         };
             context.Users.AddRange(users);
             await context.SaveChangesAsync();
@@ -57,6 +57,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = Guid.NewGuid(),
+                    LoginID = "retailer@gmail.com",
                     UserName = "User 1",
                     Address = "123 Main St", // Required property
                     PhoneNo = "1234567890",  // Required property
@@ -65,6 +66,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = Guid.NewGuid(),
+                    LoginID = "retailer@gmail.com",
                     UserName = "User 2",
                     Address = "456 Elm St", // Required property
                     PhoneNo = "0987654321",  // Required property
@@ -91,6 +93,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = Guid.NewGuid(),
+                    LoginID = "retailer@gmail.com",
                     UserName = "User 1",
                     Address = "123 Main St", // Required property
                     PhoneNo = "1234567890",  // Required property
@@ -99,6 +102,7 @@ namespace OrderManagement.Tests.Repositories
                 new User
                 {
                     UserID = Guid.NewGuid(),
+                    LoginID = "retailer@gmail.com",
                     UserName = "User 2",
                     Address = "456 Elm St", // Required property
                     PhoneNo = "0987654321",  // Required property

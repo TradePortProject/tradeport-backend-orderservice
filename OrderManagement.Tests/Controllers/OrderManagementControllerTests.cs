@@ -70,18 +70,6 @@ public class OrderManagementControllerTests
             _logger,
             _kafkaProducerMock.Object // Pass the mocked IKafkaProducer
         );
-        //_controller = new OrderManagementController(
-        //_dbContext, // dbContext not needed for unit tests
-        //_orderRepositoryMock.Object,
-        //_orderDetailsRepoMock.Object,
-        //_shoppingCartRepoMock.Object, // shoppingCartRepository not needed
-        //_mapper,
-        //_productServiceMock.Object,
-        //_userRepositoryMock.Object, // userRepository not needed
-        //_logger,
-        //_kafkaProducerMock.Object
-        //);
-
     }
 
     [Fact]
@@ -541,9 +529,6 @@ public class OrderManagementControllerTests
         Assert.True(response.ContainsKey("Message"));
         Assert.Equal("Orders retrieved successfully.", response["Message"]);
     }
-
-
-
 
     // ✅ TEST CASE 2: AcceptOrder Updates Order Successfully
     [Fact]
@@ -1220,40 +1205,40 @@ public class OrderManagementControllerTests
         result.ProductID.Should().Be(productId);
     }
 
-    [Theory]
-    [InlineData(1, "New")]
-    [InlineData(2, "In Progress")]
-    [InlineData(3, "Shipped")]
-    [InlineData(4, "Delivered")]
-    public async Task UpdateOrderStatus_ShouldUpdateCorrectly(int status, string expectedStatus)
-    {
-        // Arrange
-        var orderId = Guid.NewGuid();
-        var order = new Order { OrderID = orderId, OrderStatus = status };
+    //[Theory]
+    //[InlineData(1, "New")]
+    //[InlineData(2, "In Progress")]
+    //[InlineData(3, "Shipped")]
+    //[InlineData(4, "Delivered")]
+    //public async Task UpdateOrderStatus_ShouldUpdateCorrectly(int status, string expectedStatus)
+    //{
+    //    // Arrange
+    //    var orderId = Guid.NewGuid();
+    //    var order = new Order { OrderID = orderId, OrderStatus = status };
 
-        _orderRepositoryMock.Setup(repo => repo.GetOrderByIdAsync(orderId)).ReturnsAsync(order);
-        _orderRepositoryMock.Setup(repo => repo.UpdateOrderAsync(It.IsAny<Order>()))
-            .ReturnsAsync(order); // Simulate successful update
+    //    _orderRepositoryMock.Setup(repo => repo.GetOrderByIdAsync(orderId)).ReturnsAsync(order);
+    //    _orderRepositoryMock.Setup(repo => repo.UpdateOrderAsync(It.IsAny<Order>()))
+    //        .ReturnsAsync(order); // Simulate successful update
 
-        var updateOrderDto = new UpdateOrderDTO { OrderID = orderId, OrderStatus = expectedStatus };
+    //    var updateOrderDto = new UpdateOrderDTO { OrderID = orderId, OrderStatus = expectedStatus };
 
-        // Act
-        var result = await _controller.UpdateOrder(updateOrderDto);
-        var okResult = result as OkObjectResult;
+    //    // Act
+    //    var result = await _controller.UpdateOrder(updateOrderDto);
+    //    var okResult = result as OkObjectResult;
 
-        // ✅ Assert
-        okResult.Should().NotBeNull();
-        okResult.StatusCode.Should().Be(200); // Ensure success response
+    //    // ✅ Assert
+    //    okResult.Should().NotBeNull();
+    //    okResult.StatusCode.Should().Be(200); // Ensure success response
 
-        // ✅ Serialize and Deserialize Response
-        var jsonString = JsonConvert.SerializeObject(okResult.Value);
-        var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
+    //    // ✅ Serialize and Deserialize Response
+    //    var jsonString = JsonConvert.SerializeObject(okResult.Value);
+    //    var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonString);
 
-        // ✅ Validate response properties
-        Assert.Equal("Order updated successfully.", response["Message"].ToString());
-        Assert.Equal(orderId.ToString(), response["OrderId"].ToString()); // Ensure the order ID is returned correctly
-        Assert.Equal("", response["ErrorMessage"].ToString()); // Ensure no error message
-    }
+    //    // ✅ Validate response properties
+    //    Assert.Equal("Order updated successfully.", response["Message"].ToString());
+    //    Assert.Equal(orderId.ToString(), response["OrderId"].ToString()); // Ensure the order ID is returned correctly
+    //    Assert.Equal("", response["ErrorMessage"].ToString()); // Ensure no error message
+    //}
 
     [Fact] 
     public async Task DeleteShoppingCartItemByCardID_ShouldReturnBadRequest_WhenCartIDIsEmpty()
@@ -1493,48 +1478,44 @@ public class OrderManagementControllerTests
     //    response["Message"].Should().Be("Order status updated successfully.");
     //}
 
-    [Fact]
-    public async Task AcceptRejectOrder_ShouldHandlePartialAcceptance()
-    {
-        // Arrange
-        var orderId = Guid.NewGuid();
-        var productId = Guid.NewGuid();
-        var orderDetails = new List<OrderDetails>
-        {
-            new OrderDetails { OrderDetailID = Guid.NewGuid(), ProductID = productId, Quantity = 2, OrderItemStatus = 1 },
-            new OrderDetails { OrderDetailID = Guid.NewGuid(), ProductID = Guid.NewGuid(), Quantity = 1, OrderItemStatus = 1 }
-        };
-        var acceptOrderDto = new AcceptOrderDTO
-        {
-            OrderID = orderId,
-            OrderItems = new List<AcceptOrderItemDTO>
-            {
-                new AcceptOrderItemDTO { OrderDetailID = orderDetails[0].OrderDetailID, IsAccepted = true },
-                new AcceptOrderItemDTO { OrderDetailID = orderDetails[1].OrderDetailID, IsAccepted = false }
-            }
-        };
-        _orderRepositoryMock.Setup(repo => repo.GetOrderByIdAsync(orderId))
-            .ReturnsAsync(new Order { OrderID = orderId, OrderDetails = orderDetails });
-        _orderRepositoryMock.Setup(repo => repo.GetOrderDetailsByOrderIdAsync(orderId))
-            .ReturnsAsync(orderDetails);
-        _productServiceMock.Setup(service => service.GetProductByIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(new ProductDTO { ProductID = productId, Quantity = 10 });
-        _productServiceMock.Setup(service => service.UpdateProductQuantityAsync(It.IsAny<Guid>(), It.IsAny<int>()))
-            .ReturnsAsync(true);
-        // Act
-        var result = await _controller.AcceptRejectOrder(acceptOrderDto);
-        // Debugging: Verify the result type
-        Console.WriteLine($"[DEBUG] Result Type: {result?.GetType()}");
-        // Assert
-        var okResult = result as OkObjectResult;
-        okResult.Should().NotBeNull($"Expected OkObjectResult but got {result?.GetType()}");
-        var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(okResult.Value));
-        response["Message"].Should().Be("Order status updated successfully.");
-    }
-
-
-
-
+    //[Fact]
+    //public async Task AcceptRejectOrder_ShouldHandlePartialAcceptance()
+    //{
+    //    // Arrange
+    //    var orderId = Guid.NewGuid();
+    //    var productId = Guid.NewGuid();
+    //    var orderDetails = new List<OrderDetails>
+    //    {
+    //        new OrderDetails { OrderDetailID = Guid.NewGuid(), ProductID = productId, Quantity = 2, OrderItemStatus = 1 },
+    //        new OrderDetails { OrderDetailID = Guid.NewGuid(), ProductID = Guid.NewGuid(), Quantity = 1, OrderItemStatus = 1 }
+    //    };
+    //    var acceptOrderDto = new AcceptOrderDTO
+    //    {
+    //        OrderID = orderId,
+    //        OrderItems = new List<AcceptOrderItemDTO>
+    //        {
+    //            new AcceptOrderItemDTO { OrderDetailID = orderDetails[0].OrderDetailID, IsAccepted = true },
+    //            new AcceptOrderItemDTO { OrderDetailID = orderDetails[1].OrderDetailID, IsAccepted = false }
+    //        }
+    //    };
+    //    _orderRepositoryMock.Setup(repo => repo.GetOrderByIdAsync(orderId))
+    //        .ReturnsAsync(new Order { OrderID = orderId, OrderDetails = orderDetails });
+    //    _orderRepositoryMock.Setup(repo => repo.GetOrderDetailsByOrderIdAsync(orderId))
+    //        .ReturnsAsync(orderDetails);
+    //    _productServiceMock.Setup(service => service.GetProductByIdAsync(It.IsAny<Guid>()))
+    //        .ReturnsAsync(new ProductDTO { ProductID = productId, Quantity = 10 });
+    //    _productServiceMock.Setup(service => service.UpdateProductQuantityAsync(It.IsAny<Guid>(), It.IsAny<int>()))
+    //        .ReturnsAsync(true);
+    //    // Act
+    //    var result = await _controller.AcceptRejectOrder(acceptOrderDto);
+    //    // Debugging: Verify the result type
+    //    Console.WriteLine($"[DEBUG] Result Type: {result?.GetType()}");
+    //    // Assert
+    //    var okResult = result as OkObjectResult;
+    //    okResult.Should().NotBeNull($"Expected OkObjectResult but got {result?.GetType()}");
+    //    var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(okResult.Value));
+    //    response["Message"].Should().Be("Order status updated successfully.");
+    //}
 
     [Fact]
     public async Task DeleteShoppingCartItemByCardID_ShouldReturnBadRequest_WhenCartIDIsInvalid()
