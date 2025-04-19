@@ -13,7 +13,6 @@ using System.Linq;
 using System.Collections.Generic;
 using FluentAssertions;
 using Newtonsoft.Json;
-using Xunit;
 using OrderManagement.Logger.interfaces;
 
 
@@ -33,10 +32,10 @@ namespace OrderManagement.Controllers
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly IAppLogger<OrderManagementController> _logger;
-        private readonly KafkaProducer _kafkaProducer;
+        private readonly IKafkaProducer _kafkaProducer;
         public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient, IUserRepository userRepo
               , IConfiguration configuration
-            , IAppLogger<OrderManagementController> logger, KafkaProducer kafkaProducer)
+            , IAppLogger<OrderManagementController> logger, IKafkaProducer kafkaProducer)
         {
             this.dbContext = appDbContext;
             this.orderRepository = orderRepo;

@@ -1,0 +1,30 @@
+
+
+
+dotnet test --filter "FullyQualifiedName~OrderManagementControllerTests.GetShoppingCartByRetailerId_ShouldHandleMissingProductInfo"
+
+
+dotnet test --filter "FullyQualifiedName~OrderManagementControllerTests.AcceptRejectOrder_ShouldHandlePartialAcceptance"
+
+
+dotnet test --filter "FullyQualifiedName~ProductManagementControllerTests.GetAllProducts_ShouldReturnOk_WhenProductsExist"
+
+
+
+docker stop cadfa27b8b14
+
+docker exec -it b1077e724c7f sh
+
+
+docker run -d -p 80:80 sha256:afdd1a0f996ea5defb491f36dc25573bcf69207fb971e585fb51bd86380baf2d
+
+http://52.65.175.138/
+
+
+
+
+
+
+docker tag 56e26f1b8df7 smmt777/subsdevices:v1
+
+

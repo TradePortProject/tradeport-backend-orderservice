@@ -80,7 +80,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
-builder.Services.AddScoped<KafkaProducer>();
+builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
 
 var app = builder.Build();
 

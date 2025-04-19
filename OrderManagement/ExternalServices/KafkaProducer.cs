@@ -5,7 +5,7 @@ using OrderManagement.Logger.interfaces;
 
 namespace OrderManagement.ExternalServices
 {
-    public class KafkaProducer
+    public class KafkaProducer : IKafkaProducer
     {
         private readonly IProducer<string, string> _producer;
         private readonly IAppLogger<KafkaProducer> _logger;
