@@ -1,6 +1,6 @@
 services:
   orderservice:
-    image: productservice 
+    image: orderservice 
     build: .
     container_name: orderservice
     ports:
