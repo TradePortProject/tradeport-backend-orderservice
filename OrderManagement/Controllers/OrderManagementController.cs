@@ -30,13 +30,14 @@ namespace OrderManagement.Controllers
         private readonly IOrderRepository orderRepository;
         private readonly IOrderDetailsRepository orderDetailsRepository;
         private readonly IShoppingCartRepository shoppingCartRepository;
-        private readonly IProductServiceClient productServiceClient;
         private readonly IUserRepository userRepository;
+        private readonly IProductServiceClient productServiceClient;
+        private readonly IProductRepository productRepository;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly IAppLogger<OrderManagementController> _logger;
         private readonly IKafkaProducer _kafkaProducer;
-        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient, IUserRepository userRepo
+        public OrderManagementController(AppDbContext appDbContext, IOrderRepository orderRepo, IOrderDetailsRepository orderDetailsRepo, IShoppingCartRepository shoppingCartRepo, IMapper mapper, IProductServiceClient productServiceClient, IProductRepository productRepo, IUserRepository userRepo
               , IConfiguration configuration
             , IAppLogger<OrderManagementController> logger, IKafkaProducer kafkaProducer)
         {
@@ -45,6 +46,7 @@ namespace OrderManagement.Controllers
             this.orderDetailsRepository = orderDetailsRepo;
             this.shoppingCartRepository = shoppingCartRepo;
             this.productServiceClient = productServiceClient;
+            this.productRepository = productRepo;
             this.userRepository = userRepo;
             _mapper = mapper;
             _configuration = configuration;
@@ -539,7 +541,7 @@ namespace OrderManagement.Controllers
                         return BadRequest(new { Message = "Order item not found.", ErrorMessage = $"OrderDetailID {itemDto.OrderDetailID} does not exist." });
                     }
 
-                    var product = await productServiceClient.GetProductByIdAsync(orderItem.ProductID);
+                    var product = await GetProductByProductID(orderItem.ProductID);
                     if (product == null)
                     {
                         _logger.LogError($"[ERROR] Product not found for ProductID: {orderItem.ProductID}");
@@ -559,7 +561,7 @@ namespace OrderManagement.Controllers
                             return BadRequest(new { Message = "Insufficient stock.", ErrorMessage = $"Product {product.ProductID} has insufficient quantity." });
                         }
                         int updatedQuantity = product.Quantity.GetValueOrDefault() - orderItem.Quantity;
-                        bool productUpdated = await productServiceClient.UpdateProductQuantityAsync(orderItem.ProductID, updatedQuantity);
+                        bool productUpdated = await UpdateProductQuantityAsync(orderItem.ProductID, updatedQuantity);
 
                         if (!productUpdated)
                         {
@@ -590,11 +592,11 @@ namespace OrderManagement.Controllers
                     var allAcceptedItems = previouslyAcceptedItems.Concat(newlyAcceptedItems).ToList();
                     foreach (var item in allAcceptedItems)
                     {
-                        var product = await productServiceClient.GetProductByIdAsync(item.ProductID);
+                        var product = await GetProductByProductID(item.ProductID);
                         if (product != null)
                         {
                             int restoredQuantity = product.Quantity.GetValueOrDefault() + item.Quantity;
-                            await productServiceClient.UpdateProductQuantityAsync(item.ProductID, restoredQuantity);
+                            await UpdateProductQuantityAsync(item.ProductID, restoredQuantity);
                         }
                     }
                 }
@@ -703,17 +705,33 @@ namespace OrderManagement.Controllers
             }
             return totalPrice;
         }
-      
+
         private async Task<ProductDTO> GetProductByProductID(Guid productID)
         {
-            var product = await productServiceClient.GetProductByIdAsync(productID);
+            var product = await productRepository.GetProductByProductIdAsync(productID);
 
             if (product == null)
             {
                 throw new Exception($"ProductID {productID} does not exist.");
             }
+            var productDTO = _mapper.Map<ProductDTO>(product);
+            return productDTO;
+        }
 
-            return product;
+        private async Task<bool> UpdateProductQuantityAsync(Guid productID, int quantity)
+        {
+            _logger.LogInformation("Attempting to update product quantity. ProductID: {ProductID}, Quantity: {Quantity}", productID, quantity);
+
+            var product = await productRepository.UpdateProductQuantityAsync(productID, quantity);
+
+            if (product == null)
+            {
+                _logger.LogWarning("Failed to update product quantity. ProductID: {ProductID} might not exist.", productID);
+                return false;
+            }
+
+            _logger.LogInformation("Product quantity updated successfully. ProductID: {ProductID}, New Quantity: {Quantity}", productID, quantity);
+            return true;
         }
         #endregion
     }

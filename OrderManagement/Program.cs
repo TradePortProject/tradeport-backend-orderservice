@@ -49,7 +49,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)  

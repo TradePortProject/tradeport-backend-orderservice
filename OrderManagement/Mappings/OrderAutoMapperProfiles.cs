@@ -67,7 +67,9 @@ namespace OrderManagement.Mappings
                 .ForMember(dest => dest.OrderStatus,
                     opt => opt.MapFrom(src => EnumHelper.GetEnumDisplayName((OrderStatus)src.OrderStatus)));
 
-               
+            CreateMap<Product, ProductDTO>();
+            CreateMap<ProductDTO, Product>();
+
             // ✅ Mapping for Accepting Order
             CreateMap<AcceptOrderDTO, Order>()
                 //.ForMember(dest => dest.OrderStatus,

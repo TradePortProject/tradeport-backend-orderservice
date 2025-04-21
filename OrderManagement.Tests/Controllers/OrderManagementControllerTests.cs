@@ -33,6 +33,7 @@ public class OrderManagementControllerTests
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly IMapper _mapper;
     private readonly Mock<IProductServiceClient> _productServiceMock;
+    private readonly Mock<IProductRepository> _productRepository;
     private readonly OrderManagementController _controller;
     private readonly IAppLogger<OrderManagementController> _logger;
     private readonly Mock<IKafkaProducer> _kafkaProducerMock;
@@ -51,6 +52,7 @@ public class OrderManagementControllerTests
         _shoppingCartRepoMock = new Mock<IShoppingCartRepository>();
         _productServiceMock = new Mock<IProductServiceClient>();
         _userRepositoryMock = new Mock<IUserRepository>();
+        _productRepository = new Mock<IProductRepository>();
         _logger = new Mock<IAppLogger<OrderManagementController>>().Object; // Mock logger
         _kafkaProducerMock = new Mock<IKafkaProducer>(); // Mock Kafka producer
 
@@ -65,6 +67,7 @@ public class OrderManagementControllerTests
             _shoppingCartRepoMock.Object,
             _mapper,
             _productServiceMock.Object,
+            _productRepository.Object,
             _userRepositoryMock.Object,
             new Mock<IConfiguration>().Object, // Add a mock IConfiguration
             _logger,
