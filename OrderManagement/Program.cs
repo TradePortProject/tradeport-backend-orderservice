@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using OrderManagement.Data;
 using OrderManagement.Mappings;
@@ -11,6 +13,7 @@ using Serilog.Filters;
 using OrderManagement.ExternalServices;
 using OrderManagement.Logger.interfaces;
 using OrderManagement.Logger;
+using System.Text;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,7 +23,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAutoMapper(typeof(OrderAutoMapperProfiles));
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -50,26 +52,29 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)  // Reads from appsettings.json
+    .ReadFrom.Configuration(builder.Configuration)  
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Filter.ByIncludingOnly(Matching.FromSource("OrderManagement.Controllers.OrderManagementController"))
     .CreateLogger();
-builder.Host.UseSerilog(); // Register Serilog
+builder.Host.UseSerilog(); 
+
 // Register IAppLogger<T>
 builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
+
 // Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins",
     builder =>
     {
-        builder.WithOrigins("http://localhost:3001") // Add the ReactJS app origin
-               .AllowAnyHeader()
+        builder.WithOrigins("http://localhost:3001")
                .AllowAnyMethod()
                .AllowCredentials();
     });
 });
+
+
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -81,16 +86,54 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 
 builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        //options.RequireHttpsMetadata = false; // Set to true in production
+        //options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+        };
+
+        Console.WriteLine($"Issuer: {options.TokenValidationParameters.ValidIssuer}");
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                Console.WriteLine($"Authorization header: {authHeader}");
+                return Task.CompletedTask;
+            },
+
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                return context.Response.WriteAsync("{\"message\": \"Token is missing or invalid\"}");
+            },
+
+            OnAuthenticationFailed = context =>
+            {
+                // Log authentication failure
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 var app = builder.Build();
 
-//Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-//    app.UseDeveloperExceptionPage();
-//    app.UseSwagger();
-//    app.UseSwaggerUI();
-//}
+
 
 // Enable Swagger for all environments
 app.UseSwagger();
@@ -100,13 +143,17 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger"; // Access at http://localhost:3017/swagger
 });
 
+// Enable CORS with the specified policy
+app.UseCors("AllowAll");
+
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Enable CORS with the specified policy
-app.UseCors("AllowSpecificOrigins");
+
 
 app.Run();

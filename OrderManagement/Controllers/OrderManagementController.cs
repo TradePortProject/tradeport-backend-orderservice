@@ -13,13 +13,16 @@ using System.Linq;
 using System.Collections.Generic;
 using FluentAssertions;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Authorization;
 using OrderManagement.Logger.interfaces;
 
 
 namespace OrderManagement.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+   
     public class OrderManagementController : ControllerBase
     {
 
@@ -49,7 +52,7 @@ namespace OrderManagement.Controllers
             _kafkaProducer = kafkaProducer;
         }
 
-
+       
         [HttpGet("GetOrdersAndOrderDetails")]
         public async Task<IActionResult> GetOrdersAndOrderDetails(
         [FromQuery] Guid? orderId,
