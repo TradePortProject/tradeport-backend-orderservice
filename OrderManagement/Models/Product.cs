@@ -12,5 +12,11 @@ namespace OrderManagement.Models
         public string ProductName { get; set; }
 
         public Guid ManufacturerID { get; set; } // Optional: If you need Manufacturer Mapping
+
+        public int? Quantity { get; set; }
+
+        public DateTime UpdatedOn { get; set; }
+
+        public bool IsActive { get; set; }
     }
 }
