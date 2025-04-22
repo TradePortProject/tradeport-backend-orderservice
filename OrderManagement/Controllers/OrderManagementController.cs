@@ -219,6 +219,9 @@ namespace OrderManagement.Controllers
 
                 //Send notification to Kafka
                 _logger.LogInformation("Send notification to Kafka");
+                bool kafkaNotificationSent = true;
+                string kafkaNotificationError = string.Empty;
+
                 try
                 {
                     var notification = new Notification
@@ -241,7 +244,8 @@ namespace OrderManagement.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogInformation("Kafka notification failed: {Message}", ex.Message);
+                    kafkaNotificationSent = false;
+                    kafkaNotificationError = ex.Message;
                     _logger.LogError(ex, "Kafka notification failed.");
                 }
 
@@ -249,10 +253,10 @@ namespace OrderManagement.Controllers
                 var response = new
                 {
                     Message = "Order created successfully.",
-                    ErrorMessage = ""
+                    ErrorMessage = "",
+                    KafkaNotificationStatus = kafkaNotificationSent ? "Success" : "Failed",
+                    KafkaErrorMessage = kafkaNotificationSent ? null : kafkaNotificationError
                 };
-
-
 
                 return Ok(new { orderID = orderModel.OrderID, response });
             }
@@ -267,7 +271,6 @@ namespace OrderManagement.Controllers
                 return StatusCode(500, response);
             }
         }
-
 
         [HttpPost("CreateShoppingCart")]
         public async Task<IActionResult> CreateShoppingCartItemAsync([FromBody] CreateShoppingCartDTO shoppingCartDto)
@@ -643,6 +646,8 @@ namespace OrderManagement.Controllers
 
                 // Send notification to Kafka
                 _logger.LogInformation("Send notification to Kafka");
+                bool kafkaNotificationSent = true;
+                string kafkaNotificationError = string.Empty;
                 try
                 {
                     var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { existingOrder.RetailerID });
@@ -675,11 +680,19 @@ namespace OrderManagement.Controllers
                 }
                 catch (Exception ex)
                 {
+                    kafkaNotificationSent = false;
+                    kafkaNotificationError = ex.Message;
                     _logger.LogError(ex, "Kafka notification failed in AcceptRejectOrder");
                     _logger.LogInformation("Kafka notification failed in AcceptRejectOrder: {Message}", ex.Message);
                 }
 
-                return Ok(new { Message = "Order status updated successfully.", OrderID = existingOrder.OrderID });
+                return Ok(new
+                {
+                    Message = "Order status updated successfully.",
+                    OrderID = existingOrder.OrderID,
+                    KafkaNotificationStatus = kafkaNotificationSent ? "Success" : "Failed",
+                    KafkaErrorMessage = kafkaNotificationSent ? null : kafkaNotificationError
+                });
             }
             catch (Exception ex)
             {

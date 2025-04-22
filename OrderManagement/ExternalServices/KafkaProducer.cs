@@ -13,9 +13,17 @@ namespace OrderManagement.ExternalServices
         public KafkaProducer(IAppLogger<KafkaProducer> logger, IConfiguration configuration)
         {
             _logger = logger;
+
+            var kafkaSection = configuration.GetSection("Kafka");
             var config = new ProducerConfig
             {
-                BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092"
+                BootstrapServers = kafkaSection["BootstrapServers"],
+                MessageTimeoutMs = int.Parse(kafkaSection["MessageTimeoutMs"] ?? "5000"),
+                SocketTimeoutMs = int.Parse(kafkaSection["SocketTimeoutMs"] ?? "6000"),
+                RequestTimeoutMs = int.Parse(kafkaSection["RequestTimeoutMs"] ?? "5000"),
+                Acks = Acks.All,
+                EnableIdempotence = false, // Default is false, but good to make it explicit
+                ClientId = "order-service"
             };
 
             _producer = new ProducerBuilder<string, string>(config).Build();
@@ -23,24 +31,16 @@ namespace OrderManagement.ExternalServices
 
         public async Task SendNotificationAsync(string topic, Notification notification)
         {
-            try
+            var message = JsonSerializer.Serialize(notification);
+            _logger.LogDebug("Preparing to send Kafka message: {Message}", message);
+
+            await _producer.ProduceAsync(topic, new Message<string, string>
             {
-                var message = JsonSerializer.Serialize(notification);
+                Key = notification.NotificationID.ToString(),
+                Value = message
+            });
 
-                //_logger.LogInformation("Sending message to topic {Topic}: {Message}", topic, message);
-
-                await _producer.ProduceAsync(topic, new Message<string, string>
-                {
-                    Key = notification.NotificationID.ToString(),
-                    Value = message
-                });
-
-                _logger.LogInformation("Notification sent to Kafka: {Subject}", notification.Subject);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send Kafka message.");
-            }
+            _logger.LogInformation("Kafka message sent successfully: {Subject}", notification.Subject);
         }
     }
 }
