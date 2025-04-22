@@ -26,15 +26,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-//var connectionString = Environment.GetEnvironmentVariable("DEFAULT_CONNECTION") ??
-                       //builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Add DbContext service
-//builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseSqlServer(connectionString));
 
 // Configure SqlClient to ignore certificate validation errors (for testing purposes)
 SqlConnectionStringBuilder sqlBuilder = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -50,6 +41,7 @@ builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)  
@@ -63,18 +55,26 @@ builder.Host.UseSerilog();
 builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
 
 // Configure CORS
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("AllowSpecificOrigins",
+//    builder =>
+//    {
+//        builder.WithOrigins("http://localhost:3001")
+//               .AllowAnyHeader()
+//               .AllowAnyMethod()
+//               .AllowCredentials();
+//    });
+//});
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-    builder =>
-    {
-        builder.WithOrigins("http://localhost:3001")
-               .AllowAnyHeader()
-               .AllowAnyMethod()
-               .AllowCredentials();
-    });
+    options.AddPolicy("AllowAll",
+        policy => policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
-
 
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -145,7 +145,7 @@ app.UseSwaggerUI(c =>
 });
 
 // Enable CORS with the specified policy
-app.UseCors("AllowSpecificOrigins");
+app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 
