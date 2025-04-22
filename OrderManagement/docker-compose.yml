@@ -1,6 +1,8 @@
 services:
   orderservice:
+    image: orderservice 
     build: .
+    container_name: orderservice
     ports:
       - "3017:3017"
     environment:

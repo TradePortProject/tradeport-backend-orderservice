@@ -49,7 +49,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)  
@@ -69,6 +69,7 @@ builder.Services.AddCors(options =>
     builder =>
     {
         builder.WithOrigins("http://localhost:3001")
+               .AllowAnyHeader()
                .AllowAnyMethod()
                .AllowCredentials();
     });
