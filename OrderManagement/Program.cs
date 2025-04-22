@@ -65,17 +65,12 @@ builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
 // Configure CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-    builder =>
-    {
-        builder.WithOrigins("http://localhost:3001")
-               .AllowAnyHeader()
-               .AllowAnyMethod()
-               .AllowCredentials();
-    });
+    options.AddPolicy("AllowAll",
+        policy => policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
-
-
 
 builder.WebHost.ConfigureKestrel(options =>
 {
