@@ -144,7 +144,7 @@ app.UseSwaggerUI(c =>
 });
 
 // Enable CORS with the specified policy
-app.UseCors("AllowAll");
+app.UseCors("AllowSpecificOrigins");
 
 app.UseHttpsRedirection();
 
