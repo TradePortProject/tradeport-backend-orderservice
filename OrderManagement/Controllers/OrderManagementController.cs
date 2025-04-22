@@ -15,6 +15,7 @@ using FluentAssertions;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.Authorization;
 using OrderManagement.Logger.interfaces;
+using System.Security.Claims;
 
 
 namespace OrderManagement.Controllers
@@ -54,7 +55,18 @@ namespace OrderManagement.Controllers
             _kafkaProducer = kafkaProducer;
         }
 
-       
+        private (Guid? UserId, int? Role) GetCurrentUser()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            Guid? userId = Guid.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+            int? role = int.TryParse(roleClaim, out var parsedRole) ? parsedRole : null;
+
+            return (userId, role);
+        }
+
+
         [HttpGet("GetOrdersAndOrderDetails")]
         public async Task<IActionResult> GetOrdersAndOrderDetails(
         [FromQuery] Guid? orderId,
@@ -71,6 +83,28 @@ namespace OrderManagement.Controllers
         {
 
             _logger.LogInformation("Entering GetOrdersAndOrderDetails...");
+
+            var (currentUserId, role) = GetCurrentUser();
+            if (currentUserId == null || role == null)
+                return Unauthorized("Invalid or missing user credentials.");
+
+            // Apply filters based on role
+            switch (role)
+            {
+                case 1: // Admin – No filters
+                    break;
+                case 2: // Retailer
+                    retailerId = currentUserId;
+                    break;
+                case 3: // Manufacturer
+                    manufacturerId = currentUserId;
+                    break;
+                case 4: // DeliveryPersonnel
+                    deliveryPersonnelId = currentUserId;
+                    break;
+                default:
+                    return Forbid("Unauthorized role.");
+            }
 
             // Fetch orders
             var (orders, totalPages) = await orderRepository.GetFilteredOrdersAsync(
