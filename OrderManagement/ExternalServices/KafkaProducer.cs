@@ -23,7 +23,10 @@ namespace OrderManagement.ExternalServices
                 RequestTimeoutMs = int.Parse(kafkaSection["RequestTimeoutMs"] ?? "5000"),
                 Acks = Acks.All,
                 EnableIdempotence = false, // Default is false, but good to make it explicit
-                ClientId = "order-service"
+                ClientId = "order-service",
+                MaxInFlight = 1,// Add these to stop infinite retries
+                RetryBackoffMs = 100,// Time to wait before retrying         
+                MessageSendMaxRetries = 1
             };
 
             _producer = new ProducerBuilder<string, string>(config).Build();
