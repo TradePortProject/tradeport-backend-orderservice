@@ -217,36 +217,45 @@ namespace OrderManagement.Controllers
                     await DeactivateShoppingCartItemById(cartID);
                 }
 
-                //Send notification to Kafka
-                _logger.LogInformation("Send notification to Kafka");
-                bool kafkaNotificationSent = true;
-                string kafkaNotificationError = string.Empty;
+                string kafkaNotificationStatus = "Disabled";
+                string kafkaNotificationError = "Kafka is disabled in configuration.";
 
-                try
+                if (_configuration.GetValue<bool>("Kafka:Enabled"))
                 {
-                    var notification = new Notification
+                    //Send notification to Kafka
+                    _logger.LogInformation("Send notification to Kafka");
+                    try
                     {
-                        NotificationID = Guid.NewGuid(),
-                        UserID = orderModel.RetailerID,
-                        Subject = "Tradeport Notification Service - Order Created",
-                        Message = $"Your order {orderModel.OrderID} has been placed successfully.",
-                        FromEmail = "noreply@tradeport.com",
-                        RecipientEmail = retailer[orderRequestDto.RetailerID].LoginID, // Assuming you have this
-                        CreatedOn = DateTime.UtcNow,
-                        CreatedBy = orderModel.CreatedBy,
-                        //FailureReason = null,
-                        //SentTime = DateTime.UtcNow,
-                        //EmailSend = true
-                    };
+                        var notification = new Notification
+                        {
+                            NotificationID = Guid.NewGuid(),
+                            UserID = orderModel.RetailerID,
+                            Subject = "Tradeport Notification Service - Order Created",
+                            Message = $"Your order {orderModel.OrderID} has been placed successfully.",
+                            FromEmail = "noreply@tradeport.com",
+                            RecipientEmail = retailer[orderRequestDto.RetailerID].LoginID, // Assuming you have this
+                            CreatedOn = DateTime.UtcNow,
+                            CreatedBy = orderModel.CreatedBy,
+                            //FailureReason = null,
+                            //SentTime = DateTime.UtcNow,
+                            //EmailSend = true
+                        };
 
-                    await _kafkaProducer.SendNotificationAsync("tradeport-notify", notification);
-                    _logger.LogInformation("Send notification to Kafka successful");
+                        await _kafkaProducer.SendNotificationAsync("tradeport-notify", notification);
+                        _logger.LogInformation("Send notification to Kafka successful");
+                        kafkaNotificationStatus = "Success";
+                        kafkaNotificationError = "";
+                    }
+                    catch (Exception ex)
+                    {
+                        kafkaNotificationStatus = "Failed";
+                        kafkaNotificationError = ex.Message;
+                        _logger.LogError(ex, "Kafka notification failed");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    kafkaNotificationSent = false;
-                    kafkaNotificationError = ex.Message;
-                    _logger.LogError(ex, "Kafka notification failed.");
+                    _logger.LogInformation("Kafka is disabled. Skipping Kafka notification.");
                 }
 
                 _logger.LogInformation("Order creation process completed successfully.");
@@ -254,8 +263,8 @@ namespace OrderManagement.Controllers
                 {
                     Message = "Order created successfully.",
                     ErrorMessage = "",
-                    KafkaNotificationStatus = kafkaNotificationSent ? "Success" : "Failed",
-                    KafkaErrorMessage = kafkaNotificationSent ? null : kafkaNotificationError
+                    KafkaNotificationStatus = kafkaNotificationStatus,
+                    KafkaErrorMessage = kafkaNotificationError
                 };
 
                 return Ok(new { orderID = orderModel.OrderID, response });
@@ -645,53 +654,68 @@ namespace OrderManagement.Controllers
                 _logger.LogInformation($"[TRACE] Order status updated successfully for OrderID: {existingOrder.OrderID}");
 
                 // Send notification to Kafka
-                _logger.LogInformation("Send notification to Kafka");
-                bool kafkaNotificationSent = true;
-                string kafkaNotificationError = string.Empty;
-                try
+                string kafkaNotificationStatus = "Disabled";
+                string kafkaNotificationError = "Kafka is disabled in configuration.";
+
+                if (_configuration.GetValue<bool>("Kafka:Enabled"))
                 {
-                    var retailer = await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid> { existingOrder.RetailerID });
+                    _logger.LogInformation("Send notification to Kafka");
+                    try
+                    {
+                        var retailer =
+                            await userRepository.GetUserInfoByRetailerIdAsync(new List<Guid>
+                                { existingOrder.RetailerID });
 
-                    if (retailer == null)
-                    {
-                        _logger.LogInformation("Retailer ID {RetailerID} not found in the system.", existingOrder.RetailerID);
-                        _logger.LogInformation("Retailer ID and email is not found. Kafka notification failed in AcceptRejectOrder");
-                    }
-                    else
-                    {
-                        var notification = new Notification
+                        if (retailer == null)
                         {
-                            NotificationID = Guid.NewGuid(),
-                            UserID = existingOrder.RetailerID,
-                            Subject = "Tradeport Notification Service - Order Status Updated",
-                            Message = $"Your order ({existingOrder.OrderID}) status has been updated to {(isAllAccepted ? "Accepted" : "Rejected")}.",
-                            FromEmail = "noreply@tradeport.com",
-                            RecipientEmail = retailer[existingOrder.RetailerID].LoginID,
-                            //FailureReason = null,
-                            //SentTime = DateTime.UtcNow,
-                            //EmailSend = true
-                            CreatedOn = DateTime.UtcNow,
-                            CreatedBy = existingOrder.UpdatedBy
-                        };
+                            _logger.LogInformation("Retailer ID {RetailerID} not found in the system.",
+                                existingOrder.RetailerID);
+                            _logger.LogInformation(
+                                "Retailer ID and email is not found. Kafka notification failed in AcceptRejectOrder");
+                        }
+                        else
+                        {
+                            var notification = new Notification
+                            {
+                                NotificationID = Guid.NewGuid(),
+                                UserID = existingOrder.RetailerID,
+                                Subject = "Tradeport Notification Service - Order Status Updated",
+                                Message =
+                                    $"Your order ({existingOrder.OrderID}) status has been updated to {(isAllAccepted ? "Accepted" : "Rejected")}.",
+                                FromEmail = "noreply@tradeport.com",
+                                RecipientEmail = retailer[existingOrder.RetailerID].LoginID,
+                                //FailureReason = null,
+                                //SentTime = DateTime.UtcNow,
+                                //EmailSend = true
+                                CreatedOn = DateTime.UtcNow,
+                                CreatedBy = existingOrder.UpdatedBy
+                            };
 
-                        await _kafkaProducer.SendNotificationAsync("tradeport-notify", notification);
-                        _logger.LogInformation("Send notification to Kafka successful.");
+                            await _kafkaProducer.SendNotificationAsync("tradeport-notify", notification);
+                            _logger.LogInformation("Send notification to Kafka successful.");
+                            kafkaNotificationStatus = "Success";
+                            kafkaNotificationError = "";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        kafkaNotificationStatus = "Failed";
+                        kafkaNotificationError = ex.Message;
+                        _logger.LogError(ex, "Kafka notification failed in AcceptRejectOrder");
+                        _logger.LogInformation("Kafka notification failed in AcceptRejectOrder: {Message}", ex.Message);
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    kafkaNotificationSent = false;
-                    kafkaNotificationError = ex.Message;
-                    _logger.LogError(ex, "Kafka notification failed in AcceptRejectOrder");
-                    _logger.LogInformation("Kafka notification failed in AcceptRejectOrder: {Message}", ex.Message);
+                    _logger.LogInformation("Kafka is disabled. Skipping Kafka notification.");
                 }
 
                 return Ok(new
                 {
                     Message = "Order status updated successfully.",
                     OrderID = existingOrder.OrderID,
-                    KafkaNotificationStatus = kafkaNotificationSent ? "Success" : "Failed",
-                    KafkaErrorMessage = kafkaNotificationSent ? null : kafkaNotificationError
+                    KafkaNotificationStatus = kafkaNotificationStatus,
+                    KafkaErrorMessage = kafkaNotificationError
                 });
             }
             catch (Exception ex)

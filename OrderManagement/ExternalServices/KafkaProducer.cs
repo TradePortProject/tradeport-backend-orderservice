@@ -26,7 +26,7 @@ namespace OrderManagement.ExternalServices
                 ClientId = "order-service",
                 MaxInFlight = 1,// Add these to stop infinite retries
                 RetryBackoffMs = 100,// Time to wait before retrying         
-                MessageSendMaxRetries = 1
+                MessageSendMaxRetries = 0
             };
 
             _producer = new ProducerBuilder<string, string>(config).Build();
