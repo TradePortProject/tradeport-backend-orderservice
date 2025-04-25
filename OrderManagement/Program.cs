@@ -13,34 +13,47 @@ using Serilog.Filters;
 using OrderManagement.ExternalServices;
 using OrderManagement.Logger.interfaces;
 using OrderManagement.Logger;
+using Microsoft.OpenApi.Models;
 using System.Text;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// Add services
 builder.Services.AddAutoMapper(typeof(OrderAutoMapperProfiles));
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-//builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Swagger with JWT support
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Order Management API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer {your JWT token here}'"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
-//var connectionString = Environment.GetEnvironmentVariable("DEFAULT_CONNECTION") ??
-                       //builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Add DbContext service
-//builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseSqlServer(connectionString));
-
-// Configure SqlClient to ignore certificate validation errors (for testing purposes)
-SqlConnectionStringBuilder sqlBuilder = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
-
-sqlBuilder.Encrypt = true;
-sqlBuilder.TrustServerCertificate = true;
+// Configure DB
+SqlConnectionStringBuilder sqlBuilder = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"))
+{
+    Encrypt = true,
+    TrustServerCertificate = true
+};
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(sqlBuilder.ConnectionString));
 
@@ -52,7 +65,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)  
+    .ReadFrom.Configuration(builder.Configuration)
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Filter.ByIncludingOnly(Matching.FromSource("OrderManagement.Controllers.OrderManagementController"))
@@ -62,33 +75,33 @@ builder.Host.UseSerilog();
 // Register IAppLogger<T>
 builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
 
-// Configure CORS
+// CORS: support cloud + localhost for dev/test
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-        builder =>
-        {
-            builder.WithOrigins("http://localhost:3001")
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        });
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        policy.WithOrigins("http://localhost:3001", "http://tradeport.cloud:3001")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(3017); // HTTP port
+    options.ListenAnyIP(3017);
     options.ListenAnyIP(3018);
-    //options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps()); // HTTPS port
 });
 
+// External clients
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
-
 builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
+
+// Auth
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        //options.RequireHttpsMetadata = false; // Set to true in production
+        options.RequireHttpsMetadata = false; // Set to true in production
         //options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -96,8 +109,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"]
         };
@@ -139,11 +151,22 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Management API v1");
-    c.RoutePrefix = "swagger"; // Access at http://localhost:3017/swagger
+    c.RoutePrefix = "swagger";
 });
 
-// Enable CORS with the specified policy
+// Enable CORS early
 app.UseCors("AllowSpecificOrigins");
+
+// Handle OPTIONS preflight manually
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == HttpMethods.Options)
+    {
+        context.Response.StatusCode = 200;
+        return;
+    }
+    await next.Invoke();
+});
 
 app.UseHttpsRedirection();
 
@@ -152,7 +175,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-
 
 app.Run();
