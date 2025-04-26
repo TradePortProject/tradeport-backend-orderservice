@@ -13,6 +13,6 @@
         public int OrderQuantity { get; set; }
         public Guid ManufacturerID { get; set; }
         public decimal ProductPrice { get; set; }
-
+        public string Email { get; set; }
     }
 }
