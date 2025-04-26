@@ -384,6 +384,7 @@ namespace OrderManagement.Controllers
                         var retailer = retailers[cart.RetailerID];
                         cart.RetailerName = retailer.UserName;
                         cart.PhoneNumber = retailer.PhoneNo;
+                        cart.Email = retailer.LoginID;
                         cart.Address = retailer.Address;
                         Console.WriteLine($"[TRACE] Retrieved retailer details: {cart.RetailerName}");
                         _logger.LogInformation("Retrieved retailer details: {RetailerName}", cart.RetailerName);
