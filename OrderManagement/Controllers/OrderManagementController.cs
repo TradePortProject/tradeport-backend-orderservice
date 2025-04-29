@@ -23,7 +23,7 @@ namespace OrderManagement.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-   
+
     public class OrderManagementController : ControllerBase
     {
 
@@ -198,6 +198,7 @@ namespace OrderManagement.Controllers
                 _logger.LogDebug("Transforming order request DTO into the Order entity.");
                 var orderModel = _mapper.Map<CreateOrderDTO, Order>(orderRequestDto);
                 orderModel.TotalPrice = totalPrice;
+                //orderModel.ShippingCost = totalPrice > 0 ? totalPrice * 0.03m : 0;
 
                 orderModel = await orderRepository.CreateOrderAsync(orderModel);
                 _logger.LogInformation("Saving new order to the database.");
@@ -299,38 +300,24 @@ namespace OrderManagement.Controllers
             {
                 _logger.LogWarning("Invalid Retailer ID: {RetailerID}", shoppingCartDto.RetailerID);
                 return BadRequest(new { Message = "Invalid Retailer ID.", ErrorMessage = "The provided Retailer ID does not exist." });
-            }
-
+            }          
             try
             {
-                _logger.LogInformation("Mapping DTO to ShoppingCart model.");
-                var orderModel = _mapper.Map<CreateShoppingCartDTO, ShoppingCart>(shoppingCartDto);
-                orderModel.Status = (int)OrderStatus.Save;
-                orderModel.OrderQuantity = orderModel.OrderQuantity;
-                orderModel.ProductID = orderModel.ProductID;
-                orderModel.ProductPrice = orderModel.ProductPrice;
-                orderModel.ManufacturerID = orderModel.ManufacturerID;
-                orderModel.CreatedBy = orderModel.RetailerID;
-                orderModel.CreatedOn = DateTime.UtcNow;
-                orderModel.IsActive = true;
+                var shoppingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAndProductIdAsync(shoppingCartDto.RetailerID, shoppingCartDto.ProductID);
 
-                // Use Repository to create Product
-                _logger.LogInformation("Creating shopping cart item in the repository.");
-                orderModel = await shoppingCartRepository.CreateShoppingCartItemsAsync(orderModel);
+                var existingCart = await shoppingCartRepository.GetShoppingCartByRetailerIdAndProductIdAsync(shoppingCartDto.RetailerID, shoppingCartDto.ProductID);
 
-                _logger.LogInformation("Shopping cart item created successfully with CartID: {CartID}", orderModel.CartID);
-
-                var response = new
+                if (existingCart != null)
                 {
-                    Message = "Item added to the cart successfully.",
-                    ErrorMessage = ""
-                };
-                return Ok(new { cartID = orderModel.CartID, response });
+                    return await UpdateExistingCartItem(existingCart, shoppingCartDto);
+                }
+
+                return await CreateNewCartItem(shoppingCartDto);
             }
 
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating shopping cart item.", ex.Message);
+                _logger.LogError(ex, "Error occurred while adding item into the shopping cart", ex.Message);
                 var response = new
                 {
                     Message = "Item creation failed.",
@@ -342,6 +329,52 @@ namespace OrderManagement.Controllers
             }
         }
 
+        private async Task<IActionResult> UpdateExistingCartItem(ShoppingCart cart, CreateShoppingCartDTO dto)
+        {
+            _logger.LogInformation("Updating cart item for RetailerID: {RetailerID}, ProductID: {ProductID}",
+                dto.RetailerID, dto.ProductID);
+
+            cart.OrderQuantity += dto.OrderQuantity;
+            cart.UpdatedBy = dto.RetailerID;
+            cart.UpdatedOn = DateTime.UtcNow;
+
+            bool isUpdated = await shoppingCartRepository.UpdateShoppingCartItemByCartIdAsync(cart);
+            if (!isUpdated)
+            {
+                _logger.LogWarning("Failed to update cart item with CartID: {CartID}", cart.CartID);
+                return StatusCode(500, new { ErrorMessage = "Failed to update cart item." });
+            }
+
+            _logger.LogInformation("Cart item updated successfully with CartID: {CartID}", cart.CartID);
+
+            return Ok(new
+            {
+                cartID = cart.CartID,
+                response = new { Message = "Item quantity updated.", ErrorMessage = "" }
+            });
+        }
+
+        private async Task<IActionResult> CreateNewCartItem(CreateShoppingCartDTO dto)
+        {
+            _logger.LogInformation("Creating new cart item for RetailerID: {RetailerID}, ProductID: {ProductID}",
+                dto.RetailerID, dto.ProductID);
+
+            var newCart = _mapper.Map<ShoppingCart>(dto);
+            newCart.Status = (int)OrderStatus.Save;
+            newCart.IsActive = true;
+            newCart.CreatedBy = dto.RetailerID;
+            newCart.CreatedOn = DateTime.UtcNow;
+
+            newCart = await shoppingCartRepository.CreateShoppingCartItemsAsync(newCart);
+
+            _logger.LogInformation("New cart item created with CartID: {CartID}", newCart.CartID);
+
+            return Ok(new
+            {
+                cartID = newCart.CartID,
+                response = new { Message = "Item added to the cart successfully.", ErrorMessage = "" }
+            });
+        }
 
         [HttpGet("GetShoppingCart/{retailerID}")]
         public async Task<IActionResult> GetShoppingCartByRetailerId(Guid retailerID)
@@ -370,7 +403,7 @@ namespace OrderManagement.Controllers
                     };
                 }
 
-                 _logger.LogInformation("Shopping cart items found. Number of items: {ItemCount}", shoppingCart.Count);
+                _logger.LogInformation("Shopping cart items found. Number of items: {ItemCount}", shoppingCart.Count);
                 var shoppingCartDTO = _mapper.Map<List<ShoppingCartDTO>>(shoppingCart);
                 var retailerIDs = shoppingCart.Select(sc => sc.RetailerID).Distinct().ToList();
                 _logger.LogInformation("Retrieved retailer IDs: {RetailerIDs}", string.Join(", ", retailerIDs));
@@ -759,12 +792,6 @@ namespace OrderManagement.Controllers
 
             return result;
         }
-
-        //private decimal CalculateShippingCost(decimal totalPrice)
-        //{
-        //    decimal shippingCost = totalPrice * 0.03m;
-        //    return shippingCost;
-        //}
 
         private decimal CalculateTotalCost(List<CreateOrderDetailsDTO> items)
         {
