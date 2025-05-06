@@ -1,4 +1,4 @@
-name: "CI - Backend Order - Deploy Tradeport Product Service  to Dockerhub"
+name: "CI - Backend Order - Deploy Tradeport Order Service  to Dockerhub"
 
 on:
   workflow_run:
