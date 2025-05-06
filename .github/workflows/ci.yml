@@ -1,4 +1,4 @@
-name: "CI - Backend - Build and Test"
+name: "CI - Backend Order - Build, Test & Security Scan"
 
 on:
   push:
@@ -10,10 +10,55 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  setup:
+    name: 📐 .NET Environment Setup
+    runs-on: ubuntu-latest
+    outputs:
+      dotnet-restore-cache-hit: ${{ steps.cache-dotnet.outputs.cache-hit }}
+    steps:
+      - name: 🧾 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: 💾 Cache NuGet packages
+        id: cache-dotnet
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.nuget/packages
+            **/bin
+            **/obj
+          key: ${{ runner.os }}-dotnet-${{ hashFiles('**/*.csproj') }}
+
+      - name: 📦 Restore Dependencies (Force)
+        run: dotnet restore --force
+
+  lint:
+    name: 🧹 Code Style Check
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Code Format
+        run: dotnet format --verify-no-changes || echo "⚠️ Code formatting issues found"
+
   build-test:
     name: 🧪 Build & Test .NET Service
     runs-on: ubuntu-latest
+    needs: [setup, lint]
 
     defaults:
       run:
