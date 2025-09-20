@@ -55,7 +55,7 @@ namespace OrderManagement.Controllers
             _kafkaProducer = kafkaProducer;
         }
 
-        private (Guid? UserId, int? Role) GetCurrentUser()
+        public (Guid? UserId, int? Role) GetCurrentUser()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;

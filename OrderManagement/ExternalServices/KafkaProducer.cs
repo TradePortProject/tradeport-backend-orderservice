@@ -2,6 +2,8 @@
 using Confluent.Kafka;
 using OrderManagement.Models;
 using OrderManagement.Logger.interfaces;
+using Moq;
+using Xunit;
 
 namespace OrderManagement.ExternalServices
 {
@@ -45,6 +47,9 @@ namespace OrderManagement.ExternalServices
 
             _logger.LogInformation("Kafka message sent successfully: {Subject}", notification.Subject);
         }
+
+        
+
     }
 }
 
