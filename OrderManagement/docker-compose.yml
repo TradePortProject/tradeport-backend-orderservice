@@ -1,3 +1,23 @@
+# services:
+#   orderservice:
+#     image: orderservice 
+#     build: .
+#     container_name: orderservice
+#     ports:
+#       - "3017:3017"
+#     environment:
+#       - ASPNETCORE_URLS=http://+:3017
+#       - DB_USER=sa
+#       - DB_PASSWORD=Your_password123
+#       - DB_SERVER=mssql
+#       - DB_DATABASE=tradeportdb
+#     networks:
+#       - my_network
+
+# networks:
+#   my_network:
+#     external: true
+
 services:
   orderservice:
     image: orderservice 
@@ -7,10 +27,10 @@ services:
       - "3017:3017"
     environment:
       - ASPNETCORE_URLS=http://+:3017
-      - DB_USER=sa
-      - DB_PASSWORD=Your_password123
-      - DB_SERVER=mssql
-      - DB_DATABASE=tradeportdb
+      - AWS_REGION=ap-southeast-1
+    # Optional: mount AWS creds for local dev (adjust path for Windows)
+    # volumes:
+    #   - ~/.aws:/root/.aws:ro
     networks:
       - my_network
 

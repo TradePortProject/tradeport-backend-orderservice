@@ -15,15 +15,65 @@ using OrderManagement.Logger.interfaces;
 using OrderManagement.Logger;
 using Microsoft.OpenApi.Models;
 using System.Text;
+// NEW: AWS + JSON
+using Amazon;
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
+/* 
+   1) Load config from AWS Secrets Manager (same secrets as User Mgmt)
+   - tradeport/dev/user-mgmt/mssql-eks -> ConnectionStrings:tradeportdb
+   - tradeport/dev/user-mgmt/jwt       -> Jwt:Key, Jwt:Issuer, Jwt:Audience
+*/
+var smClient = new AmazonSecretsManagerClient(RegionEndpoint.APSoutheast1);
+
+async Task LoadSecret(string name)
+{
+    var resp = await smClient.GetSecretValueAsync(new GetSecretValueRequest { SecretId = name });
+    if (resp.SecretString is null) return;
+
+    var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(resp.SecretString);
+    if (dict is null) return;
+
+    foreach (var kv in dict)
+    {
+        if (kv.Value is JsonElement el && el.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var inner in el.EnumerateObject())
+                builder.Configuration[$"{kv.Key}:{inner.Name}"] = inner.Value.ToString();
+        }
+        else
+        {
+            builder.Configuration[kv.Key] = kv.Value?.ToString();
+        }
+    }
+}
+
+// Load the secrets 
+await LoadSecret("tradeport/dev/user-mgmt/mssql-eks");
+await LoadSecret("tradeport/dev/user-mgmt/jwt");
+
+/* 2) Database (RDS SQL Server)  Uses ConnectionStrings:tradeportdb from Secrets Manager */
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("tradeportdb"),
+        sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null));
+});
+
+// Handy raw ADO connection for quick checks
+builder.Services.AddScoped<System.Data.Common.DbConnection>(_ =>
+    new SqlConnection(builder.Configuration.GetConnectionString("tradeportdb")));
+
+/* 3) App services, repos, mapping, external clients */
 builder.Services.AddAutoMapper(typeof(OrderAutoMapperProfiles));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger with JWT support
+// Swagger + JWT auth header
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Order Management API", Version = "v1" });
@@ -38,39 +88,24 @@ builder.Services.AddSwaggerGen(c =>
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
+        { new OpenApiSecurityScheme{ Reference = new OpenApiReference{ Type = ReferenceType.SecurityScheme, Id = "Bearer"}}, Array.Empty<string>() }
     });
 });
 
-// Configure DB
-SqlConnectionStringBuilder sqlBuilder = new SqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"))
-{
-    Encrypt = true,
-    TrustServerCertificate = true
-};
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(sqlBuilder.ConnectionString));
-
-// Register repository
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
 builder.Services.AddScoped<IShoppingCartRepository, ShoppingCartRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
-// Configure Serilog from appsettings.json
+
+// Serilog from appsettings
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Filter.ByIncludingOnly(Matching.FromSource("OrderManagement.Controllers.OrderManagementController"))
     .CreateLogger();
-builder.Host.UseSerilog(); 
+builder.Host.UseSerilog();
 
 // Register IAppLogger<T>
 builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
@@ -87,6 +122,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Ports 
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(3017);
@@ -97,46 +133,40 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
 
-// Auth
+//4) JWT Auth (values come from Secrets Manager)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; // Set to true in production
-        //options.SaveToken = true;
+        options.RequireHttpsMetadata = false; // set true in prod behind HTTPS
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidateAudience = false,
+            ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"]
         };
 
-        Console.WriteLine($"Issuer: {options.TokenValidationParameters.ValidIssuer}");
-
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context =>
+            OnMessageReceived = ctx =>
             {
-                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                var authHeader = ctx.Request.Headers["Authorization"].FirstOrDefault();
                 Console.WriteLine($"Authorization header: {authHeader}");
                 return Task.CompletedTask;
             },
-
-            OnChallenge = context =>
+            OnChallenge = ctx =>
             {
-                context.HandleResponse();
-                context.Response.StatusCode = 401;
-                context.Response.ContentType = "application/json";
-                return context.Response.WriteAsync("{\"message\": \"Token is missing or invalid\"}");
+                ctx.HandleResponse();
+                ctx.Response.StatusCode = 401;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsync("{\"message\": \"Token is missing or invalid\"}");
             },
-
-            OnAuthenticationFailed = context =>
+            OnAuthenticationFailed = ctx =>
             {
-                // Log authentication failure
-                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                Console.WriteLine($"Authentication failed: {ctx.Exception.Message}");
                 return Task.CompletedTask;
             }
         };
@@ -144,7 +174,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
+// Quick DB health endpoints (kept)
+app.MapGet("/db-health", async (AppDbContext db) =>
+{
+    var ok = await db.Database.CanConnectAsync();
+    return Results.Ok(new { connected = ok });
+});
 
+app.MapGet("/db-ping", async (System.Data.Common.DbConnection conn) =>
+{
+    await conn.OpenAsync();
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = "SELECT TOP 1 name FROM sys.tables;";
+    var result = await cmd.ExecuteScalarAsync();
+    return Results.Ok(new { anyTable = result?.ToString() ?? "(none)" });
+});
 
 // Enable Swagger for all environments
 app.UseSwagger();
@@ -157,23 +201,18 @@ app.UseSwaggerUI(c =>
 // Enable CORS early
 app.UseCors("AllowSpecificOrigins");
 
-// Handle OPTIONS preflight manually
+// Handle OPTIONS quickly
 app.Use(async (context, next) =>
 {
     if (context.Request.Method == HttpMethods.Options)
     {
-        context.Response.StatusCode = 200;
-        return;
+        context.Response.StatusCode = 200; return;
     }
-    await next.Invoke();
+    await next();
 });
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
