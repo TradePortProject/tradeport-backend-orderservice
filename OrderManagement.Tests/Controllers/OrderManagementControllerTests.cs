@@ -22,6 +22,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using OrderManagement.Logger.interfaces;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 
 [ExcludeFromCodeCoverage]
 public class OrderManagementControllerTests
@@ -298,6 +300,36 @@ public class OrderManagementControllerTests
         ((int)(long)response["NumberOfOrderItems"]).Should().Be(mockShoppingCart.Count);
     }
 
+    [Fact]
+    public void GetCurrentUser_ShouldReturnUserIdAndRole_WhenClaimsAreValid()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var role = 1;
+
+        var userClaims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, role.ToString())
+        };
+
+        var identity = new ClaimsIdentity(userClaims);
+        var claimsPrincipal = new ClaimsPrincipal(identity);
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = claimsPrincipal }
+        };
+
+        // Act
+        var (resultUserId, resultRole) = _controller.GetCurrentUser();
+
+        // Assert
+        resultUserId.Should().Be(userId);
+        resultRole.Should().Be(role);
+    }
+
+
     // ✅ 2. Test: Returns 404 when no cart items exist
     [Fact]
     public async Task GetShoppingCartByRetailerId_ShouldReturnNotFound_WhenNoCartItemsExist()
@@ -468,10 +500,93 @@ public class OrderManagementControllerTests
 
 
     // ✅ TEST CASE 1: GetOrdersAndOrderDetails Returns Data Successfully
+    //[Fact]
+    //public async Task GetOrdersAndOrderDetails_ShouldReturnOrders()
+    //{
+    //    // ✅ Step 1: Insert Mock Data into In-Memory Database
+    //    var retailerId = Guid.NewGuid();
+    //    var manufacturerId = Guid.NewGuid();
+    //    var productId = Guid.NewGuid();
+
+    //    var mockOrders = new List<Order>
+    //{
+    //    new Order
+    //    {
+    //        OrderID = Guid.NewGuid(),
+    //        RetailerID = retailerId,
+    //        DeliveryPersonnelID = null,
+    //        OrderStatus = 1,
+    //        TotalPrice = 100m,
+    //        PaymentMode = 1,
+    //        PaymentCurrency = "USD",
+    //        ShippingCost = 5m,
+    //        ShippingCurrency = "USD",
+    //        ShippingAddress = "123 Street",
+    //        OrderDetails = new List<OrderDetails>
+    //        {
+    //            new OrderDetails
+    //            {
+    //                OrderDetailID = Guid.NewGuid(),
+    //                ProductID = productId,
+    //                ManufacturerID = manufacturerId,
+    //                Quantity = 2,
+    //                OrderItemStatus = 1,
+    //                ProductPrice = 50m
+    //            }
+    //        }
+    //    }
+    //};
+
+    //    // ✅ Save to In-Memory DB
+    //    _dbContext.Order.AddRange(mockOrders);
+    //    await _dbContext.SaveChangesAsync();
+
+    //    // ✅ Ensure Repository Returns Non-Null Orders
+    //    var mappedOrders = _mapper.Map<IEnumerable<OrderDto>>(mockOrders);
+    //    _orderRepositoryMock
+    //        .Setup(repo => repo.GetFilteredOrdersAsync(
+    //            It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(),
+    //            It.IsAny<int?>(), It.IsAny<Guid?>(), It.IsAny<int?>(),
+    //            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+    //            It.IsAny<int>(), It.IsAny<int>()))
+    //        .ReturnsAsync((mappedOrders, 1)); // ✅ Returns a tuple with orders & totalPages
+
+    //    // ✅ Step 2: Execute Controller Method
+    //    var result = await _controller.GetOrdersAndOrderDetails(null, null, null, null, null, null, null, null, null, 1, 10);
+    //    var okResult = result as OkObjectResult;
+
+    //    // ✅ Step 3: Assert Response
+    //    okResult.Should().NotBeNull();
+    //    var responseJson = JsonConvert.SerializeObject(okResult.Value);
+    //    var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseJson);
+
+    //    Assert.NotNull(response);
+    //    Assert.True(response.ContainsKey("Message"));
+    //    Assert.Equal("Orders retrieved successfully.", response["Message"]);
+    //}
+
     [Fact]
     public async Task GetOrdersAndOrderDetails_ShouldReturnOrders()
     {
-        // ✅ Step 1: Insert Mock Data into In-Memory Database
+        // ✅ Step 1: Setup Authenticated User Context
+        var userId = Guid.NewGuid();
+        var role = 1; // Admin – no filters
+
+        var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+        new Claim(ClaimTypes.Role, role.ToString())
+    };
+
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var userPrincipal = new ClaimsPrincipal(identity);
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = userPrincipal }
+        };
+
+        // ✅ Step 2: Insert Mock Data into In-Memory Database
         var retailerId = Guid.NewGuid();
         var manufacturerId = Guid.NewGuid();
         var productId = Guid.NewGuid();
@@ -505,11 +620,9 @@ public class OrderManagementControllerTests
         }
     };
 
-        // ✅ Save to In-Memory DB
         _dbContext.Order.AddRange(mockOrders);
         await _dbContext.SaveChangesAsync();
 
-        // ✅ Ensure Repository Returns Non-Null Orders
         var mappedOrders = _mapper.Map<IEnumerable<OrderDto>>(mockOrders);
         _orderRepositoryMock
             .Setup(repo => repo.GetFilteredOrdersAsync(
@@ -517,20 +630,164 @@ public class OrderManagementControllerTests
                 It.IsAny<int?>(), It.IsAny<Guid?>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
-            .ReturnsAsync((mappedOrders, 1)); // ✅ Returns a tuple with orders & totalPages
+            .ReturnsAsync((mappedOrders, 1));
 
-        // ✅ Step 2: Execute Controller Method
+        // ✅ Step 3: Act
         var result = await _controller.GetOrdersAndOrderDetails(null, null, null, null, null, null, null, null, null, 1, 10);
         var okResult = result as OkObjectResult;
 
-        // ✅ Step 3: Assert Response
+        // ✅ Step 4: Assert
         okResult.Should().NotBeNull();
-        var responseJson = JsonConvert.SerializeObject(okResult.Value);
+        var responseJson = JsonConvert.SerializeObject(okResult!.Value);
         var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseJson);
 
         Assert.NotNull(response);
         Assert.True(response.ContainsKey("Message"));
         Assert.Equal("Orders retrieved successfully.", response["Message"]);
+    }
+
+    [Fact]
+    public async Task GetOrdersAndOrderDetails_ShouldFilterByRetailer()
+    {
+        var userId = Guid.NewGuid(); // Retailer ID
+        var role = 2;
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, role.ToString())
+        };
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) }
+        };
+
+        var mockOrders = new List<Order>
+        {
+            new Order
+            {
+                OrderID = Guid.NewGuid(),
+                RetailerID = userId,
+                PaymentCurrency = "USD",           // ✅ Required
+                ShippingCost = 10m,
+                ShippingCurrency = "USD",          // ✅ Required
+                ShippingAddress = "Test Street",   // ✅ Required
+                OrderDetails = new List<OrderDetails>()
+            }
+        };
+
+        _dbContext.Order.AddRange(mockOrders);
+        await _dbContext.SaveChangesAsync();
+
+        var mappedOrders = _mapper.Map<IEnumerable<OrderDto>>(mockOrders);
+        _orderRepositoryMock
+            .Setup(repo => repo.GetFilteredOrdersAsync(
+                null, userId, null, null, null, null, null, null, null, 1, 10))
+            .ReturnsAsync((mappedOrders, 1));
+
+        var result = await _controller.GetOrdersAndOrderDetails(null, null, null, null, null, null, null, null, null, 1, 10);
+        var okResult = result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        okResult!.StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetOrdersAndOrderDetails_ShouldFilterByManufacturer()
+    {
+        var userId = Guid.NewGuid(); // Manufacturer ID
+        var role = 3;
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, role.ToString())
+        };
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) }
+        };
+
+        var mockOrders = new List<Order>
+        {
+            new Order
+            {
+                OrderID = Guid.NewGuid(),
+                RetailerID = Guid.NewGuid(),
+                PaymentCurrency = "USD",           // ✅ Required
+                ShippingCost = 10m,
+                ShippingCurrency = "USD",          // ✅ Required
+                ShippingAddress = "Test Street",   // ✅ Required
+                OrderDetails = new List<OrderDetails>
+                {
+                    new OrderDetails { ManufacturerID = userId }
+                }
+            }
+        };
+
+        _dbContext.Order.AddRange(mockOrders);
+        await _dbContext.SaveChangesAsync();
+
+        var mappedOrders = _mapper.Map<IEnumerable<OrderDto>>(mockOrders);
+        _orderRepositoryMock
+            .Setup(repo => repo.GetFilteredOrdersAsync(
+                null, null, null, null, userId, null, null, null, null, 1, 10))
+            .ReturnsAsync((mappedOrders, 1));
+
+        var result = await _controller.GetOrdersAndOrderDetails(null, null, null, null, null, null, null, null, null, 1, 10);
+        var okResult = result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        okResult!.StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetOrdersAndOrderDetails_ShouldFilterByDeliveryPersonnel()
+    {
+        var userId = Guid.NewGuid(); // DeliveryPersonnel ID
+        var role = 4;
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, role.ToString())
+        };
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) }
+        };
+
+        var mockOrders = new List<Order>
+        {
+            new Order
+            {
+                OrderID = Guid.NewGuid(),
+                DeliveryPersonnelID = userId,
+                PaymentCurrency = "USD",           // ✅ Required
+                ShippingCost = 10m,
+                ShippingCurrency = "USD",          // ✅ Required
+                ShippingAddress = "Test Street",   // ✅ Required
+                OrderDetails = new List<OrderDetails>()
+            }
+        };
+
+        _dbContext.Order.AddRange(mockOrders);
+        await _dbContext.SaveChangesAsync();
+
+        var mappedOrders = _mapper.Map<IEnumerable<OrderDto>>(mockOrders);
+        _orderRepositoryMock
+            .Setup(repo => repo.GetFilteredOrdersAsync(
+                null, null, userId, null, null, null, null, null, null, 1, 10))
+            .ReturnsAsync((mappedOrders, 1));
+
+        var result = await _controller.GetOrdersAndOrderDetails(null, null, null, null, null, null, null, null, null, 1, 10);
+        var okResult = result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        okResult!.StatusCode.Should().Be(200);
     }
 
     // ✅ TEST CASE 2: AcceptOrder Updates Order Successfully
@@ -1588,4 +1845,48 @@ public class OrderManagementControllerTests
         httpPutAttribute.Should().NotBeNull();
         httpPutAttribute.Template.Should().Be("AcceptRejectOrder");
     }
+
+    [Fact]
+    public async Task CreateShoppingCartItem_ShouldUpdateQuantity_WhenCartItemExistsAndUpdateSucceeds()
+    {
+        // Arrange
+        var retailerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var cartId = Guid.NewGuid();
+        var existingCart = new ShoppingCart
+        {
+            CartID = cartId,
+            RetailerID = retailerId,
+            ProductID = productId,
+            OrderQuantity = 1,
+            CreatedBy = retailerId,
+            CreatedOn = DateTime.UtcNow
+        };
+
+        var dto = new CreateShoppingCartDTO
+        {
+            RetailerID = retailerId,
+            ProductID = productId,
+            OrderQuantity = 2
+        };
+
+        _shoppingCartRepoMock
+            .Setup(repo => repo.GetShoppingCartByRetailerIdAndProductIdAsync(retailerId, productId))
+            .ReturnsAsync(existingCart);
+
+        _shoppingCartRepoMock
+            .Setup(repo => repo.UpdateShoppingCartItemByCartIdAsync(It.IsAny<ShoppingCart>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await _controller.CreateShoppingCartItemAsync(dto);
+
+        // Assert
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var response = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(okResult.Value));
+        response["cartID"].ToString().Should().Be(cartId.ToString());
+    }
+
 }

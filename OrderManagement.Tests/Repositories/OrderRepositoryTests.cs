@@ -15,7 +15,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace OrderManagement.Tests.Repositories
 {
-    [ExcludeFromCodeCoverage]
     public class OrderRepositoryTests
     {
         public OrderRepositoryTests()
@@ -914,7 +913,7 @@ namespace OrderManagement.Tests.Repositories
 }
 
 // Utility to create isolated in-memory test DbContext instances
-[ExcludeFromCodeCoverage]
+
 public static class TestDbContextFactory
 {
     public static DbContextOptions<AppDbContext> CreateOptions()
@@ -930,7 +929,7 @@ public static class TestDbContextFactory
 }
 
 // Utility to seed consistent order data with parameters for testing
-[ExcludeFromCodeCoverage]
+
 public static class TestDataSeeder
 {
     public static async Task SeedOrderWithDetailsAsync(
@@ -996,7 +995,7 @@ public static class TestDataSeeder
     }
 }
 
-[ExcludeFromCodeCoverage]
+
 public class FailingSaveChangesContext : AppDbContext
 {
     public FailingSaveChangesContext(DbContextOptions<AppDbContext> options)

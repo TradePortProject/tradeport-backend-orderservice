@@ -22,7 +22,14 @@ namespace OrderManagement.Tests.ExternalServices
         {
             _loggerMock = new Mock<IAppLogger<KafkaProducer>>();
             _configurationMock = new Mock<IConfiguration>();
-            _configurationMock.Setup(c => c["Kafka:BootstrapServers"]).Returns("localhost:9092");
+
+            var kafkaSectionMock = new Mock<IConfigurationSection>(); 
+            kafkaSectionMock.Setup(s => s["BootstrapServers"]).Returns("tradeport.cloud:9092");
+            kafkaSectionMock.Setup(s => s["MessageTimeoutMs"]).Returns("5000");
+            kafkaSectionMock.Setup(s => s["SocketTimeoutMs"]).Returns("6000");
+            kafkaSectionMock.Setup(s => s["RequestTimeoutMs"]).Returns("5000");
+
+            _configurationMock.Setup(c => c.GetSection("Kafka")).Returns(kafkaSectionMock.Object);
 
             _producerMock = new Mock<IProducer<string, string>>();
         }
@@ -43,18 +50,32 @@ namespace OrderManagement.Tests.ExternalServices
                 CreatedBy = Guid.NewGuid()
             };
 
+            var kafkaSectionMock = new Mock<IConfigurationSection>();
+
+            _configurationMock
+                .Setup(c => c.GetSection("Kafka"))
+                .Returns(kafkaSectionMock.Object);
+
             var mockProducer = new Mock<IProducer<string, string>>();
             mockProducer
                 .Setup(p => p.ProduceAsync(It.IsAny<string>(), It.IsAny<Message<string, string>>(), default))
                 .ReturnsAsync(new DeliveryResult<string, string>());
 
-            var kafkaProducer = new KafkaProducerForTest(_loggerMock.Object, _configurationMock.Object, mockProducer.Object);
+            var kafkaProducer = new KafkaProducer(_loggerMock.Object, _configurationMock.Object)
+            {
+                // _producer is initialized internally via config, so this is just for context.
+            };
+
+            // Inject mocked producer using a subclass or constructor overload if needed
+            typeof(KafkaProducer)
+                .GetField("_producer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(kafkaProducer, mockProducer.Object);
 
             // Act
             await kafkaProducer.SendNotificationAsync("test-topic", notification);
 
             // Assert
-            _loggerMock.Verify(l => l.LogInformation("Notification sent to Kafka: {Subject}", notification.Subject), Times.Once);
+            _loggerMock.Verify(l => l.LogInformation("Kafka message sent successfully: {Subject}", notification.Subject), Times.Once);
         }
 
         // Helper class to inject mock producer
