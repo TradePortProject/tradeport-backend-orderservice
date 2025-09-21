@@ -115,7 +115,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:3001", "http://tradeport.cloud:3001")
+        policy.WithOrigins("http://tradeport.cloud", "https://tradeport.cloud")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

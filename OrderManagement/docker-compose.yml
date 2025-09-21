@@ -20,20 +20,21 @@
 
 services:
   orderservice:
-    image: orderservice 
-    build: .
+    build:
+      context: ..
+      dockerfile: OrderManagement/Dockerfile   # Path to your existing Dockerfile
     container_name: orderservice
-    ports:
-      - "3017:3017"
     environment:
-      - ASPNETCORE_URLS=http://+:3017
       - AWS_REGION=ap-southeast-1
-    # Optional: mount AWS creds for local dev (adjust path for Windows)
-    # volumes:
-    #   - ~/.aws:/root/.aws:ro
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - "3017:80"
     networks:
       - my_network
 
 networks:
   my_network:
     external: true
+
