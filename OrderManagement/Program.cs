@@ -20,8 +20,17 @@ using Amazon;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using System.Text.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // trust k8s/ingress proxies
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
 
 /* 
    1) Load config from AWS Secrets Manager (same secrets as User Mgmt)
@@ -80,7 +89,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
+        Type = SecuritySchemeType.Http,
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
@@ -126,7 +135,7 @@ builder.Services.AddCors(options =>
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(3017);
-    options.ListenAnyIP(3018);
+    //options.ListenAnyIP(3018);
 });
 
 // External clients
@@ -173,6 +182,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Quick DB health endpoints (kept)
 app.MapGet("/db-health", async (AppDbContext db) =>

@@ -22,7 +22,7 @@ namespace OrderManagement.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
 
     public class OrderManagementController : ControllerBase
     {
