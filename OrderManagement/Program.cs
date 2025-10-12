@@ -74,14 +74,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null));
 });
 
-// Handy raw ADO connection for quick checks
-builder.Services.AddScoped<System.Data.Common.DbConnection>(_ =>
-    new SqlConnection(builder.Configuration.GetConnectionString("tradeportdb")));
+//// Handy raw ADO connection for quick checks
+//builder.Services.AddScoped<System.Data.Common.DbConnection>(_ =>
+//    new SqlConnection(builder.Configuration.GetConnectionString("tradeportdb")));
 
 /* 3) App services, repos, mapping, external clients */
 builder.Services.AddAutoMapper(typeof(OrderAutoMapperProfiles));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 //// Swagger + JWT auth header
 //builder.Services.AddSwaggerGen(c =>
@@ -186,7 +187,7 @@ var app = builder.Build();
 app.MapGet("/health", () => "OK");
 app.MapGet("/ready", () => "Ready");
 
-app.UseForwardedHeaders();
+//app.UseForwardedHeaders();
 
 //// Quick DB health endpoints (kept)
 //app.MapGet("/db-health", async (AppDbContext db) =>
