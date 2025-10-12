@@ -1,5 +1,5 @@
  services:
-  tradeport-backend-productservice:
+  tradeport-backend-orderservice:
     build:
       context: .  # ✅ Change this to the current directory
       dockerfile: Dockerfile  # ✅ Ensure Dockerfile is used correctly
