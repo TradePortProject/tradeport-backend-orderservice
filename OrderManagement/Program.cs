@@ -144,44 +144,44 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient<IProductServiceClient, ProductServiceClient>();
 builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
 
-////4) JWT Auth (values come from Secrets Manager)
-//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//    .AddJwtBearer(options =>
-//    {
-//        options.RequireHttpsMetadata = false; // set true in prod behind HTTPS
-//        options.TokenValidationParameters = new TokenValidationParameters
-//        {
-//            ValidateIssuer = true,
-//            ValidateAudience = true,
-//            ValidateLifetime = true,
-//            ValidateIssuerSigningKey = true,
-//            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
-//            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-//            ValidAudience = builder.Configuration["Jwt:Audience"]
-//        };
+//4) JWT Auth (values come from Secrets Manager)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false; // set true in prod behind HTTPS
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+        };
 
-//        options.Events = new JwtBearerEvents
-//        {
-//            OnMessageReceived = ctx =>
-//            {
-//                var authHeader = ctx.Request.Headers["Authorization"].FirstOrDefault();
-//                Console.WriteLine($"Authorization header: {authHeader}");
-//                return Task.CompletedTask;
-//            },
-//            OnChallenge = ctx =>
-//            {
-//                ctx.HandleResponse();
-//                ctx.Response.StatusCode = 401;
-//                ctx.Response.ContentType = "application/json";
-//                return ctx.Response.WriteAsync("{\"message\": \"Token is missing or invalid\"}");
-//            },
-//            OnAuthenticationFailed = ctx =>
-//            {
-//                Console.WriteLine($"Authentication failed: {ctx.Exception.Message}");
-//                return Task.CompletedTask;
-//            }
-//        };
-//    });
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var authHeader = ctx.Request.Headers["Authorization"].FirstOrDefault();
+                Console.WriteLine($"Authorization header: {authHeader}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = ctx =>
+            {
+                ctx.HandleResponse();
+                ctx.Response.StatusCode = 401;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsync("{\"message\": \"Token is missing or invalid\"}");
+            },
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine($"Authentication failed: {ctx.Exception.Message}");
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 var app = builder.Build();
 app.MapGet("/health", () => "OK");
