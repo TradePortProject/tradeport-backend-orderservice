@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.1.1" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.2.9" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.14" />
