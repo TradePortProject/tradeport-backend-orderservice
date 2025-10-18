@@ -38,33 +38,33 @@ var builder = WebApplication.CreateBuilder(args);
    - tradeport/dev/user-mgmt/jwt       -> Jwt:Key, Jwt:Issuer, Jwt:Audience
 */
 
-//var smClient = new AmazonSecretsManagerClient(RegionEndpoint.APSoutheast1);
+var smClient = new AmazonSecretsManagerClient(RegionEndpoint.APSoutheast1);
 
-//async Task LoadSecret(string name)
-//{
-//    var resp = await smClient.GetSecretValueAsync(new GetSecretValueRequest { SecretId = name });
-//    if (resp.SecretString is null) return;
+async Task LoadSecret(string name)
+{
+    var resp = await smClient.GetSecretValueAsync(new GetSecretValueRequest { SecretId = name });
+    if (resp.SecretString is null) return;
 
-//    var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(resp.SecretString);
-//    if (dict is null) return;
+    var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(resp.SecretString);
+    if (dict is null) return;
 
-//    foreach (var kv in dict)
-//    {
-//        if (kv.Value is JsonElement el && el.ValueKind == JsonValueKind.Object)
-//        {
-//            foreach (var inner in el.EnumerateObject())
-//                builder.Configuration[$"{kv.Key}:{inner.Name}"] = inner.Value.ToString();
-//        }
-//        else
-//        {
-//            builder.Configuration[kv.Key] = kv.Value?.ToString();
-//        }
-//    }
-//}
+    foreach (var kv in dict)
+    {
+        if (kv.Value is JsonElement el && el.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var inner in el.EnumerateObject())
+                builder.Configuration[$"{kv.Key}:{inner.Name}"] = inner.Value.ToString();
+        }
+        else
+        {
+            builder.Configuration[kv.Key] = kv.Value?.ToString();
+        }
+    }
+}
 
-//// Load the secrets 
-//await LoadSecret("tradeport/dev/user-mgmt/mssql-eks");
-//await LoadSecret("tradeport/dev/user-mgmt/jwt");
+// Load the secrets 
+await LoadSecret("tradeport/dev/user-mgmt/mssql-eks");
+await LoadSecret("tradeport/dev/user-mgmt/jwt");
 
 /* 2) Database (RDS SQL Server)  Uses ConnectionStrings:tradeportdb from Secrets Manager */
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -84,24 +84,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//// Swagger + JWT auth header
-//builder.Services.AddSwaggerGen(c =>
-//{
-//    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Order Management API", Version = "v1" });
-//    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-//    {
-//        Name = "Authorization",
-//        Type = SecuritySchemeType.Http,
-//        Scheme = "Bearer",
-//        BearerFormat = "JWT",
-//        In = ParameterLocation.Header,
-//        Description = "Enter 'Bearer {your JWT token here}'"
-//    });
-//    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-//    {
-//        { new OpenApiSecurityScheme{ Reference = new OpenApiReference{ Type = ReferenceType.SecurityScheme, Id = "Bearer"}}, Array.Empty<string>() }
-//    });
-//});
+// Swagger + JWT auth header
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Order Management API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer {your JWT token here}'"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecurityScheme{ Reference = new OpenApiReference{ Type = ReferenceType.SecurityScheme, Id = "Bearer"}}, Array.Empty<string>() }
+    });
+});
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderDetailsRepository, OrderDetailsRepository>();
