@@ -24,14 +24,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//builder.Services.Configure<ForwardedHeadersOptions>(o =>
-//{
-//    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-//    // trust k8s/ingress proxies
-//    o.KnownNetworks.Clear();
-//    o.KnownProxies.Clear();
-//});
-
 /* 
    1) Load config from AWS Secrets Manager (same secrets as User Mgmt)
    - tradeport/dev/user-mgmt/mssql-eks -> ConnectionStrings:tradeportdb
