@@ -16,7 +16,7 @@
 
  
     <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="13.0.1" />
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
     <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.1.1" />
     <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.2.9" />
     <PackageReference Include="Confluent.Kafka" Version="2.9.0" />
